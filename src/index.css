@@ -26,3 +26,28 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 * { scrollbar-color: #27272a transparent; scrollbar-width: thin; }
+
+/* Force landscape on portrait-held phones.
+ *
+ * Rather than prompt the user to rotate, we rotate the entire app ourselves:
+ * when the device reports portrait orientation, the root element is rotated
+ * 90° so its content ends up in landscape relative to the user's eyes.
+ *
+ * Why not screen.orientation.lock()? — That only works on installed PWAs or
+ * in fullscreen, and fails silently on regular browser tabs (most users).
+ * A CSS transform works everywhere, no permission needed.
+ *
+ * The rotation origin is top-left, then we translate back into the viewport.
+ * The viewport itself doesn't change (still portrait), so we swap the root's
+ * w/h dimensions to match the rotated axis. */
+@media screen and (orientation: portrait) and (max-width: 900px) {
+  #root {
+    position: fixed;
+    top: 0;
+    left: 100vw;
+    width: 100vh;
+    height: 100vw;
+    transform: rotate(90deg);
+    transform-origin: top left;
+  }
+}

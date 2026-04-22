@@ -39,9 +39,6 @@ export default function App() {
   const [smoothing, setSmoothing] = useState(() => {
     try { return localStorage.getItem(SMOOTHING_STORAGE_KEY) || 'none'; } catch { return 'none'; }
   });
-  const [isPortrait, setIsPortrait] = useState(
-    typeof window !== 'undefined' && window.matchMedia('(orientation: portrait)').matches
-  );
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Track fullscreen state so the button label reflects reality even when the
@@ -86,13 +83,6 @@ export default function App() {
   }, [measurements, smoothing]);
 
   useEffect(() => {
-    const mq = window.matchMedia('(orientation: portrait)');
-    const handler = (e) => setIsPortrait(e.matches);
-    mq.addEventListener?.('change', handler);
-    return () => mq.removeEventListener?.('change', handler);
-  }, []);
-
-  useEffect(() => {
     const onBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = '';
@@ -125,22 +115,6 @@ export default function App() {
     URL.revokeObjectURL(url);
     setSaveOpen(false);
   };
-
-  if (isPortrait) {
-    return (
-      <div className="h-full w-full flex items-center justify-center p-8 text-center bg-zinc-950">
-        <div>
-          <div className="text-5xl mb-4 text-sky-400">↻</div>
-          <h1 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-100">
-            Please rotate your device
-          </h1>
-          <p className="text-[11px] text-zinc-500 mt-3 tracking-[0.2em] uppercase">
-            PlotEQ is landscape-only
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-100">

@@ -29,16 +29,11 @@ export default function PlotArea({ measurements }) {
         </div>
       ) : (
         <>
-          {/* "dB SPL" caption floats above the 100 tick instead of the rotated
-              YAxis label, so we can claim back ~30px of horizontal plot width. */}
-          <div className="absolute top-1 left-3 text-[10px] font-bold tracking-[0.3em] uppercase text-zinc-500 pointer-events-none z-10">
-            dB SPL
-          </div>
           <ResponsiveContainer width="100%" height="100%">
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 18, right: 20, left: -20, bottom: 6 }}>
+            <LineChart margin={{ top: 10, right: 20, left: -10, bottom: 6 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -56,6 +51,7 @@ export default function PlotArea({ measurements }) {
                 domain={[20, 100]}
                 allowDataOverflow={true}
                 ticks={[20, 30, 40, 50, 60, 70, 80, 90, 100]}
+                tickFormatter={(v) => (v === 100 ? '100 dB' : `${v}`)}
                 stroke="#3f3f46"
                 tick={{ fill: '#71717a', fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
               />
