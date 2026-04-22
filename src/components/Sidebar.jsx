@@ -14,7 +14,7 @@ export default function Sidebar({ measurements, onToggle, onRename, onDelete }) 
   };
 
   return (
-    <aside className="w-60 shrink-0 border-r border-zinc-800/70 bg-zinc-950 flex flex-col">
+    <aside className="w-48 shrink-0 border-r border-zinc-800/70 bg-zinc-950 flex flex-col">
       <div className="px-5 py-3 border-b border-zinc-800/70">
         <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.3em]">
           Measurements
@@ -64,7 +64,7 @@ export default function Sidebar({ measurements, onToggle, onRename, onDelete }) 
             )}
             <button
               onClick={() => onDelete(m.id)}
-              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 text-xs px-1 transition-opacity"
+              className="text-zinc-600 hover:text-red-400 text-xs px-1 transition-colors"
               title="Delete"
             >
               ✕
