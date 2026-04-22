@@ -223,10 +223,10 @@ export default function MeasureModal({ open, onClose, onComplete }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-sm shadow-2xl">
+      <div className="w-full max-w-md max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-sm shadow-2xl flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-zinc-800">
           <h3 className="text-[11px] font-bold tracking-[0.3em] uppercase text-zinc-100">New Measurement</h3>
           <button
             onClick={close}
@@ -236,7 +236,7 @@ export default function MeasureModal({ open, onClose, onComplete }) {
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
 
           {/* Frequency range */}
           <div className="grid grid-cols-2 gap-3">
@@ -414,7 +414,7 @@ export default function MeasureModal({ open, onClose, onComplete }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-zinc-800 flex justify-end gap-2">
+        <div className="shrink-0 px-5 py-3 border-t border-zinc-800 flex justify-end gap-2">
           {running ? (
             <button
               onClick={cancel}

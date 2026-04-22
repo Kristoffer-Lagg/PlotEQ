@@ -42,6 +42,29 @@ export default function App() {
   const [isPortrait, setIsPortrait] = useState(
     typeof window !== 'undefined' && window.matchMedia('(orientation: portrait)').matches
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Track fullscreen state so the button label reflects reality even when the
+  // user exits via the ESC key or the browser's native UI.
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // iOS Safari on iPhone doesn't expose the Fullscreen API on arbitrary
+      // elements — silently ignore. Users can still "Add to Home Screen" for
+      // a chromeless experience.
+    }
+  };
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(measurements)); } catch {}
@@ -152,12 +175,21 @@ export default function App() {
             </select>
           </div>
         </div>
-        <button
-          onClick={() => setSaveOpen(true)}
-          className="px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-transparent border border-zinc-800 hover:border-sky-500/60 hover:text-sky-400 text-zinc-400 transition-colors"
-        >
-          Save
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            className="px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-transparent border border-zinc-800 hover:border-sky-500/60 hover:text-sky-400 text-zinc-400 transition-colors"
+          >
+            {isFullscreen ? 'Exit FS' : 'Fullscreen'}
+          </button>
+          <button
+            onClick={() => setSaveOpen(true)}
+            className="px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-transparent border border-zinc-800 hover:border-sky-500/60 hover:text-sky-400 text-zinc-400 transition-colors"
+          >
+            Save
+          </button>
+        </div>
       </header>
 
       {/* Body */}
