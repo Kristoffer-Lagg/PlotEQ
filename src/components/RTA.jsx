@@ -41,7 +41,7 @@ function cWeighting(f) {
 
 export default function RTA({ smoothing, onSaveMeasurement }) {
   const [running, setRunning] = useState(false);
-  const [mode, setMode]       = useState('live');   // 'live' | 'rec'
+  const [mode, setMode]       = useState('live');   // 'live' | 'rec' | 'stopped'
   const [genOn, setGenOn]     = useState(false);
   const [genVol, setGenVol]   = useState(-20);
   const [curve, setCurve]     = useState([]);
@@ -168,6 +168,10 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
       if (now - lastTick < frameMs) return;
       lastTick = now;
 
+      // In stopped (held) mode we don't touch the curve or SPL — the user is
+      // inspecting the frozen average and deciding whether to Save.
+      if (modeRef.current === 'stopped') return;
+
       const analyser = analyserRef.current;
       const ctx      = audioCtxRef.current;
       if (!analyser || !ctx) return;
@@ -237,12 +241,22 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
       }
 
       // Apply mic calibration in raw dBFS space, then map to plot's [20, 100]
-      // display range with the same +120 offset convention used by sweep
-      // measurements — so RTA curves overlay sensibly with sweeps.
+      // display range.
+      //
+      // Sweep measurements use +120. RTA uses +140 — a 20 dB bump that
+      // compensates for the reference-level mismatch between a deconvolved
+      // transfer function (sweep) and a per-bin windowed FFT magnitude (RTA):
+      //   * FFT bins are normalized by N (FFT length) — ~13 dB loss vs IR FFT
+      //   * AnalyserNode's Blackman window costs ~2.5 dB of noise bandwidth
+      //   * Power is distributed across multiple bins per display cell in RTA
+      //     but concentrated in the IR magnitude for sweep
+      // The empirical gap observed on a matching-room measurement is ~20 dB,
+      // so +140 brings pink-noise-through-speaker RTA onto the same scale as
+      // the sweep of that same speaker.
       if (calRef.current) out = applyCalibration(out, calRef.current);
       out = out.map(({ freq, db }) => ({
         freq,
-        db: +Math.max(20, Math.min(100, db + 120)).toFixed(2),
+        db: +Math.max(20, Math.min(100, db + 140)).toFixed(2),
       }));
       setCurve(out);
 
@@ -266,12 +280,27 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
   // Button handlers ---------------------------------------------------------
   const onLive = async () => {
     if (!running) { await startEngine(); return; }
+    // Leaving stopped/held state back to live — discard the frozen average.
     setMode('live');
   };
 
+  // Rec button state machine:
+  //   live      → rec       (start fresh recording)
+  //   rec       → stopped   (freeze the current average on screen)
+  //   stopped   → rec       (start a NEW recording, old frozen data discarded)
+  //
+  // This lets the user record, inspect the result, then decide to Save it
+  // OR start a fresh recording by tapping Rec again, all without touching
+  // the Live or Save buttons.
   const onRec = async () => {
     const ok = running || (await startEngine());
     if (!ok) return;
+    if (modeRef.current === 'rec') {
+      // Stop and hold the current average on screen.
+      setMode('stopped');
+      return;
+    }
+    // Start (or re-start) a recording — reset accumulator.
     accumRef.current      = new Float64Array(NUM_POINTS);
     accumCountRef.current = 0;
     recStartRef.current   = performance.now();
@@ -308,9 +337,16 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
   const btnActive = 'bg-sky-500 text-zinc-950 shadow-[0_0_20px_-6px_rgba(56,189,248,0.85)] hover:bg-sky-400';
   const btnIdle   = 'bg-transparent border border-zinc-800 hover:border-zinc-700 text-zinc-300';
   const recActive = 'bg-red-500 text-zinc-950 shadow-[0_0_20px_-6px_rgba(248,113,113,0.85)] hover:bg-red-400';
+  const recHeld   = 'bg-red-900/40 border border-red-500/40 text-red-300 hover:bg-red-900/60';
 
+  // Rec button label tracks the state machine:
+  //   rec:     "● STOP 12.3s"   (active red — tap to freeze)
+  //   stopped: "■ HELD 12.3s"   (dim red — tap to start fresh)
+  //   live:    "Rec"            (idle gray — tap to start)
   const recLabel = mode === 'rec'
-    ? `● REC ${recTime.toFixed(1)}s`
+    ? `● STOP ${recTime.toFixed(1)}s`
+    : mode === 'stopped'
+    ? `■ HELD ${recTime.toFixed(1)}s`
     : 'Rec';
 
   return (
@@ -359,8 +395,11 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
                 <Line
                   type="linear"
                   dataKey="db"
-                  name={mode === 'rec' ? 'Recording' : 'Live'}
-                  stroke={mode === 'rec' ? '#f87171' : '#38bdf8'}
+                  name={
+                    mode === 'rec' ? 'Recording' :
+                    mode === 'stopped' ? 'Held' : 'Live'
+                  }
+                  stroke={mode === 'live' ? '#38bdf8' : '#f87171'}
                   strokeWidth={1}
                   dot={false}
                   isAnimationActive={false}
@@ -399,7 +438,9 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
         </button>
         <button
           onClick={onRec}
-          className={`${btnBase} ${mode === 'rec' ? recActive : btnIdle}`}
+          className={`${btnBase} ${
+            mode === 'rec' ? recActive : mode === 'stopped' ? recHeld : btnIdle
+          }`}
         >
           {recLabel}
         </button>
