@@ -175,9 +175,25 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
       analyser.getFloatFrequencyData(fftBins); // dBFS per linear bin
 
       // Resample linear bins → log-spaced display points.
-      // Max-pool across the band around each display point so narrow peaks
-      // (room modes) aren't lost when many linear bins fall into one display
-      // cell at high frequencies.
+      //
+      // POWER SUM (not max, not mean): convert each bin's dB to linear power,
+      // sum all bins that fall inside the display cell's band, convert back
+      // to dB. This is the physically correct operation for noise-like
+      // signals and matches REW's RTA semantics.
+      //
+      // Why sum (and why not max): at high frequencies a log-spaced display
+      // cell can span 50+ linear bins, each carrying a tiny slice of a
+      // broadband signal. Max-of-bins would report a much lower value than
+      // the total power actually in the band. Sum gets it right — pink noise
+      // into a flat system produces a flat line on the log display, which is
+      // the whole point of using pink noise for RTA.
+      //
+      // For narrowband peaks (room modes), sum still works: the peak bin
+      // dominates the sum, so room modes remain visible at their true level.
+      //
+      // For cells narrower than one FFT bin (low frequencies), we fall back
+      // to picking the single bin nearest the center frequency — avoids
+      // divide-by-zero from empty bin ranges.
       const binHz   = ctx.sampleRate / FFT_SIZE;
       const display = new Float64Array(NUM_POINTS);
       for (let i = 0; i < NUM_POINTS; i++) {
@@ -186,11 +202,17 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
         const fHi = i === NUM_POINTS - 1 ? f : Math.sqrt(f * freqGrid[i + 1]);
         const kLo = Math.max(0, Math.floor(fLo / binHz));
         const kHi = Math.min(fftBins.length - 1, Math.ceil(fHi / binHz));
-        let maxDb = -200;
-        for (let k = kLo; k <= kHi; k++) {
-          if (fftBins[k] > maxDb) maxDb = fftBins[k];
+        if (kHi < kLo) {
+          // Cell narrower than one bin — nearest-bin fallback.
+          const k = Math.max(0, Math.min(fftBins.length - 1, Math.round(f / binHz)));
+          display[i] = fftBins[k];
+        } else {
+          let sumP = 0;
+          for (let k = kLo; k <= kHi; k++) {
+            sumP += Math.pow(10, fftBins[k] / 10);
+          }
+          display[i] = 10 * Math.log10(Math.max(sumP, 1e-30));
         }
-        display[i] = maxDb;
       }
 
       // Forever-average: accumulate linear power, divide by count at readout.
