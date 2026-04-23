@@ -31,34 +31,61 @@ export default function MeasureModal({ open, onClose, onComplete }) {
   const sweepRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Enumerate audio input devices on open
+  // Enumerate audio input devices. Android Chrome hides non-default mics
+  // (including USB OTG) until getUserMedia permission is granted AND labels
+  // become available — so we trigger a throwaway permission request on first
+  // open, then enumerate.
+  const enumerate = useCallback(async (keepDeviceId) => {
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      const mics = all.filter((d) => d.kind === 'audioinput');
+      // If labels are all empty, we haven't been granted mic permission yet —
+      // request it (and immediately release the stream) so the next enumeration
+      // returns real labels and the full device list (USB OTG mics included).
+      const needsPermission = mics.length === 0 || mics.every((m) => !m.label);
+      if (needsPermission) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+          const all2 = await navigator.mediaDevices.enumerateDevices();
+          const mics2 = all2.filter((d) => d.kind === 'audioinput');
+          setDevices(mics2);
+          applyInitialPick(mics2, keepDeviceId);
+          return;
+        } catch {
+          // Permission denied — fall through with the redacted list
+        }
+      }
+      setDevices(mics);
+      applyInitialPick(mics, keepDeviceId);
+    } catch {}
+  }, []);
+
+  const applyInitialPick = (mics, keepDeviceId) => {
+    const lastId = keepDeviceId || localStorage.getItem(STORAGE_MIC_KEY);
+    const match = lastId && mics.find((m) => m.deviceId === lastId);
+    const pick = match ? match : mics[0];
+    if (pick) {
+      setSelectedDeviceId(pick.deviceId);
+      checkSavedCal(pick.label || pick.deviceId);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
-    navigator.mediaDevices.enumerateDevices().then((all) => {
-      const mics = all.filter((d) => d.kind === 'audioinput');
-      setDevices(mics);
+    enumerate();
+  }, [open, enumerate]);
 
-      const lastId = localStorage.getItem(STORAGE_MIC_KEY);
-      const match = lastId && mics.find((m) => m.deviceId === lastId);
-      const pick = match ? match : mics[0];
-      if (pick) {
-        setSelectedDeviceId(pick.deviceId);
-        checkSavedCal(pick.label || pick.deviceId);
-      }
-    }).catch(() => {});
-  }, [open]);
+  // Hot-plug: Android OTG USB mic appearing/disappearing fires devicechange
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => enumerate(selectedDeviceId);
+    navigator.mediaDevices.addEventListener?.('devicechange', handler);
+    return () => navigator.mediaDevices.removeEventListener?.('devicechange', handler);
+  }, [open, enumerate, selectedDeviceId]);
 
-  // Re-enumerate after permission grant (labels become available)
-  const reEnumerate = useCallback((keepDeviceId) => {
-    navigator.mediaDevices.enumerateDevices().then((all) => {
-      const mics = all.filter((d) => d.kind === 'audioinput');
-      setDevices(mics);
-      if (keepDeviceId) {
-        const found = mics.find((m) => m.deviceId === keepDeviceId);
-        if (found) checkSavedCal(found.label || found.deviceId);
-      }
-    }).catch(() => {});
-  }, []);
+  // Back-compat name used by the sweep completion path
+  const reEnumerate = (keepDeviceId) => enumerate(keepDeviceId);
 
   const checkSavedCal = (micLabel) => {
     try {
@@ -300,8 +327,18 @@ export default function MeasureModal({ open, onClose, onComplete }) {
           <div className="border-t border-zinc-800" />
 
           {/* Microphone selector */}
-          <label className={labelCls}>
-            Microphone
+          <div>
+            <div className="flex items-center justify-between">
+              <span className={labelCls}>Microphone</span>
+              <button
+                onClick={() => enumerate(selectedDeviceId)}
+                disabled={running}
+                title="Re-scan audio devices (plug in USB mic first)"
+                className="text-[9px] font-bold tracking-[0.2em] uppercase px-2 py-1 rounded-sm bg-transparent border border-zinc-800 hover:border-sky-500/60 hover:text-sky-400 text-zinc-500 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
             <select
               value={selectedDeviceId}
               onChange={(e) => handleMicChange(e.target.value)}
@@ -317,7 +354,7 @@ export default function MeasureModal({ open, onClose, onComplete }) {
                   ))
               }
             </select>
-          </label>
+          </div>
 
           {/* Calibration section */}
           <div className="space-y-2">
