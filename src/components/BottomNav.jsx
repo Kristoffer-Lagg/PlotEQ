@@ -1,20 +1,19 @@
 import React from 'react';
 
 const TABS = [
-  { id: 'measure',  label: 'Measure'  },
-  { id: 'library',  label: 'Library'  },
-  { id: 'tools',    label: 'Tools'    },
-  { id: 'settings', label: 'Settings' },
+  { id: 'measure', label: 'Measure' },
+  { id: 'rta',     label: 'RTA'     },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ active, onChange }) {
   return (
     <nav className="h-9 shrink-0 border-t border-zinc-800/70 bg-zinc-950 flex">
-      {TABS.map((t, i) => {
-        const isActive = i === 0;
+      {TABS.map((t) => {
+        const isActive = t.id === active;
         return (
           <button
             key={t.id}
+            onClick={() => onChange(t.id)}
             className={`flex-1 relative flex items-center justify-center text-[10px] font-bold tracking-[0.3em] uppercase transition-colors ${
               isActive ? 'text-sky-400' : 'text-zinc-600 hover:text-zinc-300'
             }`}

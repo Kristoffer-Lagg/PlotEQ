@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar.jsx';
 import PlotArea from './components/PlotArea.jsx';
+import RTA from './components/RTA.jsx';
 import MeasureModal from './components/MeasureModal.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import BottomNav from './components/BottomNav.jsx';
@@ -40,6 +41,7 @@ export default function App() {
     try { return localStorage.getItem(SMOOTHING_STORAGE_KEY) || 'none'; } catch { return 'none'; }
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeTab, setActiveTab] = useState('measure');
 
   // Track fullscreen state so the button label reflects reality even when the
   // user exits via the ESC key or the browser's native UI.
@@ -101,6 +103,16 @@ export default function App() {
   const addMeasurement = useCallback((curve) => {
     setMeasurements((ms) => [...ms, makeMeasurement(ms, curve)]);
     setMeasureOpen(false);
+  }, []);
+
+  // RTA save flow: same measurement shape, but the display name is prefixed
+  // with "RTA" so captures from the analyzer are visually distinct from sweep
+  // measurements in the sidebar list.
+  const addRtaMeasurement = useCallback((curve) => {
+    setMeasurements((ms) => {
+      const m = makeMeasurement(ms, curve);
+      return [...ms, { ...m, name: `RTA ${m.name}` }];
+    });
   }, []);
 
   const downloadJson = () => {
@@ -174,10 +186,14 @@ export default function App() {
           onRename={rename}
           onDelete={del}
         />
-        <PlotArea measurements={displayMeasurements} />
+        {activeTab === 'measure' ? (
+          <PlotArea measurements={displayMeasurements} />
+        ) : (
+          <RTA smoothing={smoothing} onSaveMeasurement={addRtaMeasurement} />
+        )}
       </div>
 
-      <BottomNav />
+      <BottomNav active={activeTab} onChange={setActiveTab} />
 
       <MeasureModal
         open={measureOpen}
