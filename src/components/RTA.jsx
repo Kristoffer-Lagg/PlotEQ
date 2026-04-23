@@ -3,7 +3,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { createPinkNoisePlayer } from '../utils/pinkNoise.js';
-import { applySmoothing } from '../utils/smoothing.js';
 import { parseCalFile, applyCalibration } from '../utils/calParser.js';
 
 // Axis ticks identical to PlotArea so the two views look interchangeable.
@@ -39,7 +38,7 @@ function cWeighting(f) {
   return 20 * Math.log10(num / den) + 0.06;
 }
 
-export default function RTA({ smoothing, onSaveMeasurement }) {
+export default function RTA({ onSaveMeasurement }) {
   const [running, setRunning] = useState(false);
   const [mode, setMode]       = useState('live');   // 'live' | 'rec' | 'stopped'
   const [genOn, setGenOn]     = useState(false);
@@ -278,9 +277,14 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
   }, [freqGrid]);
 
   // Button handlers ---------------------------------------------------------
+  // Live acts as the master on/off for the RTA engine:
+  //   engine off         → start engine in live mode
+  //   engine on, live    → stop engine (release mic, clear display)
+  //   engine on, rec/hold → switch to live mode (don't power off — the user
+  //                         is probably exiting rec mode, not shutting down)
   const onLive = async () => {
     if (!running) { await startEngine(); return; }
-    // Leaving stopped/held state back to live — discard the frozen average.
+    if (modeRef.current === 'live') { teardown(); return; }
     setMode('live');
   };
 
@@ -326,11 +330,9 @@ export default function RTA({ smoothing, onSaveMeasurement }) {
     genRef.current?.setVolumeDb(v);
   };
 
-  // Post-process with the same smoothing mode selected for the main plot.
-  const displayCurve = useMemo(
-    () => (smoothing && smoothing !== 'none' ? applySmoothing(curve, smoothing) : curve),
-    [curve, smoothing]
-  );
+  // RTA intentionally displays raw — smoothing is a post-capture choice the
+  // user makes from the measurement page after saving a record.
+  const displayCurve = curve;
 
   // Render ------------------------------------------------------------------
   const btnBase = 'px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm transition-all';
