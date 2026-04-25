@@ -115,14 +115,41 @@ export default function App() {
     });
   }, []);
 
-  const downloadJson = () => {
+  const downloadJson = async () => {
     const visible = measurements.filter((m) => m.visible);
     const payload = visible.length ? visible : measurements;
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const json = JSON.stringify(payload, null, 2);
+    const suggested = `ploteq-${Date.now()}.json`;
+
+    // Prefer the File System Access API so the user picks the destination
+    // (Chrome desktop + Chrome Android). Falls back to anchor-download on
+    // browsers that don't expose showSaveFilePicker (Firefox, Safari, older
+    // Chrome) — those land in the default Downloads folder as before.
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: suggested,
+          types: [{
+            description: 'PlotEQ measurement',
+            accept: { 'application/json': ['.json'] },
+          }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+      } catch (err) {
+        // AbortError = user cancelled the picker; swallow silently.
+        if (err?.name !== 'AbortError') console.error(err);
+      }
+      setSaveOpen(false);
+      return;
+    }
+
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ploteq-${Date.now()}.json`;
+    a.download = suggested;
     a.click();
     URL.revokeObjectURL(url);
     setSaveOpen(false);

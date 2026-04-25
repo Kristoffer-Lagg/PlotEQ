@@ -37,10 +37,6 @@ export default function Sidebar({ measurements, onToggle, onRename, onDelete }) 
               onChange={() => onToggle(m.id)}
               className="accent-sky-500 h-3.5 w-3.5 cursor-pointer"
             />
-            <span
-              className="h-2.5 w-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: m.color, boxShadow: `0 0 8px -1px ${m.color}` }}
-            />
             {editingId === m.id ? (
               <input
                 autoFocus
@@ -54,9 +50,12 @@ export default function Sidebar({ measurements, onToggle, onRename, onDelete }) 
                 className="flex-1 bg-zinc-900 border border-sky-500/60 text-zinc-100 text-[11px] px-2 py-0.5 rounded-sm outline-none font-mono"
               />
             ) : (
+              // Name + timestamp tinted with the measurement's plot color so
+              // the row itself communicates the curve identity — no blob needed.
               <button
                 onClick={() => startEdit(m)}
-                className="flex-1 text-left text-[11px] text-zinc-300 truncate font-mono tracking-tight"
+                style={{ color: m.color }}
+                className="flex-1 text-left text-[11px] truncate font-mono tracking-tight"
                 title="Tap to rename"
               >
                 {m.name}
@@ -64,7 +63,7 @@ export default function Sidebar({ measurements, onToggle, onRename, onDelete }) 
             )}
             <button
               onClick={() => onDelete(m.id)}
-              className="text-zinc-600 hover:text-red-400 text-xs px-1 transition-colors"
+              className="text-zinc-600 hover:text-sky-400 text-xs px-1 transition-colors"
               title="Delete"
             >
               ✕

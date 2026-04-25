@@ -9,8 +9,23 @@ export const PALETTE = [
   '#fb923c', // orange
 ];
 
+// Pick the next color, walking the palette in fixed order so colors rotate
+// predictably even after deletes/reorders. Rule: start AFTER the last
+// measurement's color, then return the first palette entry not already used
+// by any existing measurement. If all 8 colors are in use, fall back to
+// stepping one slot forward from the last (so adjacent measurements still
+// never share a color).
 export function nextColor(existing) {
-  return PALETTE[existing.length % PALETTE.length];
+  if (existing.length === 0) return PALETTE[0];
+  const used     = new Set(existing.map((m) => m.color));
+  const lastIdx  = PALETTE.indexOf(existing[existing.length - 1].color);
+  const startAt  = lastIdx >= 0 ? (lastIdx + 1) % PALETTE.length : 0;
+  for (let i = 0; i < PALETTE.length; i++) {
+    const c = PALETTE[(startAt + i) % PALETTE.length];
+    if (!used.has(c)) return c;
+  }
+  // Every palette slot in use — at least guarantee a different neighbor.
+  return PALETTE[startAt];
 }
 
 export function formatName(date = new Date()) {

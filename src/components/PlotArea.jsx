@@ -4,6 +4,7 @@ import {
   Line,
   XAxis,
   YAxis,
+  Label,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -33,7 +34,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 10, right: 20, left: -10, bottom: 6 }}>
+            <LineChart margin={{ top: 10, right: 20, left: -22, bottom: 6 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -51,10 +52,20 @@ export default function PlotArea({ measurements }) {
                 domain={[20, 100]}
                 allowDataOverflow={true}
                 ticks={[20, 30, 40, 50, 60, 70, 80, 90, 100]}
-                tickFormatter={(v) => (v === 100 ? '100 dB' : `${v}`)}
+                tickFormatter={(v) => `${v}`}
                 stroke="#3f3f46"
                 tick={{ fill: '#71717a', fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
-              />
+              >
+                {/* Unit annotation: "100" stays in the right-aligned tick column,
+                    "dB" floats just inside the plot at the top-left corner. */}
+                <Label
+                  value="dB"
+                  position="insideTopLeft"
+                  offset={6}
+                  fill="#71717a"
+                  style={{ fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                />
+              </YAxis>
               <Tooltip
                 contentStyle={{
                   background: '#09090b',
