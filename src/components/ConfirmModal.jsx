@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', onConfirm, onDismiss }) {
+export default function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', dismissLabel = 'Dismiss', onConfirm, onDismiss }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -12,7 +12,7 @@ export default function ConfirmModal({ open, title, message, confirmLabel = 'Con
             onClick={onDismiss}
             className="px-4 py-1.5 text-[10px] font-bold tracking-[0.2em] uppercase rounded-sm bg-transparent border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            Dismiss
+            {dismissLabel}
           </button>
           <button
             onClick={onConfirm}

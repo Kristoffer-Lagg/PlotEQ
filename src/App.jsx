@@ -1,42 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar.jsx';
 import PlotArea from './components/PlotArea.jsx';
 import RTA from './components/RTA.jsx';
 import MeasureModal from './components/MeasureModal.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import BottomNav from './components/BottomNav.jsx';
-import { makeMeasurement, generateFakeCurve, formatName, nextColor } from './utils/measurements.js';
+import { makeMeasurement } from './utils/measurements.js';
 import { applySmoothing, SMOOTHING_MODES } from './utils/smoothing.js';
 
-const STORAGE_KEY = 'ploteq:measurements:v1';
 const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 
-function loadInitial() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  // Seed with fake placeholders
-  const seeds = [];
-  for (let i = 0; i < 3; i++) {
-    const now = new Date(Date.now() - (2 - i) * 60_000);
-    seeds.push({
-      id: `seed-${i}`,
-      name: formatName(now),
-      color: nextColor(seeds),
-      visible: true,
-      createdAt: now.toISOString(),
-      curve: generateFakeCurve(Math.random()),
-    });
-  }
-  return seeds;
-}
-
 export default function App() {
-  const [measurements, setMeasurements] = useState(loadInitial);
+  // Cold start: always begin with an empty list. Measurements live only in
+  // memory for the duration of this app session — screen-off / background
+  // preserves them, but a fresh process launch starts clean.
+  const [measurements, setMeasurements] = useState([]);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [backHint, setBackHint] = useState(false);
   const [smoothing, setSmoothing] = useState(() => {
     try { return localStorage.getItem(SMOOTHING_STORAGE_KEY) || 'none'; } catch { return 'none'; }
   });
@@ -66,10 +48,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(measurements)); } catch {}
-  }, [measurements]);
-
-  useEffect(() => {
     try { localStorage.setItem(SMOOTHING_STORAGE_KEY, smoothing); } catch {}
   }, [smoothing]);
 
@@ -84,16 +62,80 @@ export default function App() {
     }));
   }, [measurements, smoothing]);
 
-  useEffect(() => {
-    const onBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-      setLeaveOpen(true);
-      return '';
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  // Two-press back-button-to-close, only inside the installed TWA / PWA
+  // (display-mode: standalone). In a regular browser tab we leave the back
+  // button alone so users keep normal navigation. The flow is:
+  //   idle -> back press -> "Press back again to close" toast for 2s
+  //          -> back press within 2s -> save-or-leave modal
+  //          -> modal Save&close OR Close-without-saving -> exit app
+  // We use a guard history entry as the popstate trigger and re-push it
+  // whenever the user dismisses the toast or modal, so the back button keeps
+  // landing here instead of unwinding the SPA.
+  const hintTimerRef = useRef(null);
+  const guardCountRef = useRef(0);
+
+  const pushGuard = useCallback(() => {
+    try {
+      window.history.pushState({ ploteqGuard: true }, '');
+      guardCountRef.current += 1;
+    } catch {}
   }, []);
+
+  const exitApp = useCallback(() => {
+    // Best-effort close: window.close() works for TWAs and PWAs launched
+    // from the home screen. If the runtime refuses (regular tab), unwind any
+    // guard entries we pushed so the user lands back on whatever was before.
+    try { window.close(); } catch {}
+    setTimeout(() => {
+      const back = guardCountRef.current + 1;
+      if (back > 0) {
+        try { window.history.go(-back); } catch {}
+      }
+    }, 50);
+  }, []);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)')?.matches ||
+      window.navigator.standalone === true;
+    if (!standalone) return;
+
+    pushGuard();
+
+    const onPopState = () => {
+      // The guard was just consumed by the back press.
+      guardCountRef.current = Math.max(0, guardCountRef.current - 1);
+
+      if (leaveOpen) {
+        // Back inside the modal cancels the modal; re-arm the guard so the
+        // next back press starts the flow over.
+        setLeaveOpen(false);
+        pushGuard();
+        return;
+      }
+
+      if (backHint) {
+        // Second press within the 2s window — open the save-or-leave modal.
+        clearTimeout(hintTimerRef.current);
+        setBackHint(false);
+        setLeaveOpen(true);
+        pushGuard();
+        return;
+      }
+
+      // First press — show the toast and re-arm the guard for press #2.
+      setBackHint(true);
+      pushGuard();
+      clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => setBackHint(false), 2000);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      clearTimeout(hintTimerRef.current);
+    };
+  }, [backHint, leaveOpen, pushGuard]);
 
   const toggleVisible = (id) =>
     setMeasurements((ms) => ms.map((m) => (m.id === id ? { ...m, visible: !m.visible } : m)));
@@ -249,14 +291,29 @@ export default function App() {
       <ConfirmModal
         open={leaveOpen}
         title="Save before leaving?"
-        message="You're about to leave PlotEQ. Save your measurements to device first?"
-        confirmLabel="Save"
-        onConfirm={() => {
-          downloadJson();
+        message="Save your measurements to device before closing PlotEQ?"
+        confirmLabel="Save & close"
+        dismissLabel="Close without saving"
+        onConfirm={async () => {
+          await downloadJson();
           setLeaveOpen(false);
+          exitApp();
         }}
-        onDismiss={() => setLeaveOpen(false)}
+        onDismiss={() => {
+          setLeaveOpen(false);
+          exitApp();
+        }}
       />
+
+      {/* Back-hint toast — shown after the first back press in standalone
+          mode. Sits above the bottom nav so it doesn't get covered. */}
+      {backHint && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-20 z-40 px-4 py-2 rounded-sm bg-zinc-900 border border-zinc-800 shadow-lg pointer-events-none">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-300">
+            Press back again to close
+          </span>
+        </div>
+      )}
     </div>
   );
 }
