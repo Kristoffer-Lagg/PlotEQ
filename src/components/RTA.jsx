@@ -8,19 +8,17 @@ import PlotTooltip from './PlotTooltip.jsx';
 
 // Axis ticks identical to PlotArea so the two views look interchangeable.
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-// Frequency label formatter. Same behaviour as PlotArea's: rounds
-// arbitrary tooltip-hover values so we don't get long float decimals
-// like "1.234567k Hz" while still rendering "1k" / "10k" for the
-// integer-aligned axis tick values.
+// Frequency label formatter. Tooltip hover values can carry float
+// precision-noise tails (e.g. 1234.5600000007 from log-spacing math), so
+// we clean those before dividing by 1000 — the noise would otherwise be
+// amplified into the rendered string.
+const cleanHz = (v) => +(+v).toPrecision(7);
 const fmtHz = (v) => {
   if (v == null || Number.isNaN(v)) return '';
-  if (v >= 19500) return '20k Hz';
-  if (v >= 10000) return `${Math.round(v / 1000)}k`;
-  if (v >= 1000)  {
-    const k = v / 1000;
-    return Number.isInteger(k) ? `${k}k` : `${k.toFixed(1)}k`;
-  }
-  return `${Math.round(v)}`;
+  const c = cleanHz(v);
+  if (c === 20000) return '20k Hz';
+  if (c >= 1000)   return `${c / 1000}k`;
+  return `${c}`;
 };
 
 // AnalyserNode FFT size. 16384 @ 48 kHz → ~3 Hz linear bin spacing;
