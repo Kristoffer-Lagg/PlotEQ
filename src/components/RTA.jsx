@@ -452,7 +452,7 @@ export default function RTA({ onSaveMeasurement }) {
         </button>
         <button
           onClick={onRec}
-          className={`${btnBase} ${
+          className={`${btnBase} tabular-nums min-w-[120px] ${
             mode === 'rec' ? recActive : mode === 'stopped' ? recHeld : btnIdle
           }`}
         >
@@ -483,7 +483,7 @@ export default function RTA({ onSaveMeasurement }) {
             className={`${btnBase} ${genOn ? btnActive : btnIdle}`}
             title="Stereo random pink noise"
           >
-            {genOn ? '♪ Pink ON' : '♪ Pink'}
+            ♪ Pink
           </button>
           <div className="flex items-center gap-2 min-w-[180px]">
             <span className="text-[9px] font-bold tracking-[0.25em] uppercase text-zinc-600 shrink-0">Vol</span>

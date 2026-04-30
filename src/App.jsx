@@ -73,6 +73,15 @@ export default function App() {
   // landing here instead of unwinding the SPA.
   const hintTimerRef = useRef(null);
   const guardCountRef = useRef(0);
+  // Mirror reactive state into a ref so the popstate handler (registered
+  // once on mount) always reads the latest values without needing to be
+  // re-bound — re-binding in a [backHint, leaveOpen]-keyed effect would
+  // also push extra guard history entries on every render and break the
+  // 2-press flow (the second back press would just pop a stale guard).
+  const lifecycleRef = useRef({ backHint: false, leaveOpen: false });
+  useEffect(() => {
+    lifecycleRef.current = { backHint, leaveOpen };
+  }, [backHint, leaveOpen]);
 
   const pushGuard = useCallback(() => {
     try {
@@ -106,7 +115,9 @@ export default function App() {
       // The guard was just consumed by the back press.
       guardCountRef.current = Math.max(0, guardCountRef.current - 1);
 
-      if (leaveOpen) {
+      const { backHint: bh, leaveOpen: lo } = lifecycleRef.current;
+
+      if (lo) {
         // Back inside the modal cancels the modal; re-arm the guard so the
         // next back press starts the flow over.
         setLeaveOpen(false);
@@ -114,7 +125,7 @@ export default function App() {
         return;
       }
 
-      if (backHint) {
+      if (bh) {
         // Second press within the 2s window — open the save-or-leave modal.
         clearTimeout(hintTimerRef.current);
         setBackHint(false);
@@ -135,7 +146,10 @@ export default function App() {
       window.removeEventListener('popstate', onPopState);
       clearTimeout(hintTimerRef.current);
     };
-  }, [backHint, leaveOpen, pushGuard]);
+    // Mount once. The handler reads current state via lifecycleRef so it
+    // never goes stale, and we never re-push extra guard entries.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleVisible = (id) =>
     setMeasurements((ms) => ms.map((m) => (m.id === id ? { ...m, visible: !m.visible } : m)));
