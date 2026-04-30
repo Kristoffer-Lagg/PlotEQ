@@ -419,7 +419,7 @@ export default function RTA({ onSaveMeasurement }) {
             {/* "dB" unit annotation overlay — CSS rather than Recharts Label
                 so it always paints reliably. Aligned vertically with the top
                 "100" tick label and offset right of the y-axis line. */}
-            <span className="absolute top-[7px] left-[44px] text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
+            <span className="absolute top-[5px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
               dB
             </span>
 

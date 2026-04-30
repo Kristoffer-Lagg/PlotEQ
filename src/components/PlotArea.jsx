@@ -90,7 +90,7 @@ export default function PlotArea({ measurements }) {
               reliably regardless of axis margin. Vertically aligned with
               the top-most "100" tick label, with a small horizontal gap
               from the y-axis line. */}
-          <span className="absolute top-[7px] left-[44px] text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
+          <span className="absolute top-[5px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
             dB
           </span>
         </>

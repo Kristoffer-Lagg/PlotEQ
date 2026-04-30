@@ -28,7 +28,7 @@ export default function PlotTooltip({
   return (
     <div
       className="bg-zinc-950/95 border border-zinc-800 rounded-sm shadow-lg backdrop-blur-sm font-mono text-zinc-100 relative pointer-events-auto"
-      style={{ padding: '6px 22px 6px 8px', fontSize: 11 }}
+      style={{ padding: '6px 30px 6px 8px', fontSize: 11 }}
     >
       {/* Close button — bigger hit area on the right edge so a fingertip
           can reliably tap it without grazing the data rows. */}
@@ -42,10 +42,10 @@ export default function PlotTooltip({
           e.stopPropagation();
           onDismiss?.(label);
         }}
-        className="absolute top-0 right-0 w-5 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-100 active:text-sky-400 transition-colors"
+        className="absolute top-0 right-0 w-7 h-full flex items-center justify-center text-red-500 hover:text-red-400 active:text-red-300 transition-colors"
         aria-label="Close tooltip"
       >
-        <span className="text-[12px] leading-none">×</span>
+        <span className="text-[16px] leading-none font-bold">×</span>
       </button>
 
       <div
