@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import PlotTooltip from './PlotTooltip.jsx';
 
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 // Tick labels. Suffix "Hz" onto the highest tick so we can drop the separate
@@ -20,6 +21,10 @@ const fmtHz = (v) => {
 
 export default function PlotArea({ measurements }) {
   const visible = measurements.filter((m) => m.visible);
+  // Track which tooltip the user has dismissed (by frequency label) so the
+  // X close button has somewhere to record state. The tooltip auto-resets
+  // when the user touches a different point on the curve.
+  const [dismissedLabel, setDismissedLabel] = useState(null);
 
   return (
     <div className="relative flex-1 min-w-0 h-full bg-zinc-950">
@@ -33,7 +38,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 10, right: 20, left: -24, bottom: 6 }}>
+            <LineChart margin={{ top: 9, right: 19, left: -25, bottom: 5 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -56,16 +61,15 @@ export default function PlotArea({ measurements }) {
                 tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
               />
               <Tooltip
-                contentStyle={{
-                  background: '#09090b',
-                  border: '1px solid #27272a',
-                  borderRadius: '2px',
-                  fontSize: 11,
-                  fontFamily: 'JetBrains Mono, ui-monospace, monospace',
-                  color: '#f4f4f5',
-                }}
-                labelStyle={{ color: '#71717a', fontSize: 10, letterSpacing: '0.15em' }}
-                labelFormatter={(v) => `${fmtHz(v)} HZ`}
+                isAnimationActive={false}
+                content={(props) => (
+                  <PlotTooltip
+                    {...props}
+                    fmtHz={fmtHz}
+                    dismissedLabel={dismissedLabel}
+                    onDismiss={setDismissedLabel}
+                  />
+                )}
               />
               {visible.map((m) => (
                 <Line
@@ -82,10 +86,11 @@ export default function PlotArea({ measurements }) {
               ))}
             </LineChart>
           </ResponsiveContainer>
-          {/* "dB" unit annotation — overlaid via CSS rather than via a
-              Recharts <Label> so it renders reliably at the top-left of the
-              plot area regardless of axis margin. */}
-          <span className="absolute top-2 left-9 text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight">
+          {/* "dB" unit annotation — overlaid via CSS so it renders
+              reliably regardless of axis margin. Vertically aligned with
+              the top-most "100" tick label, with a small horizontal gap
+              from the y-axis line. */}
+          <span className="absolute top-[7px] left-[44px] text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
             dB
           </span>
         </>

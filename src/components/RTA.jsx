@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { createPinkNoisePlayer } from '../utils/pinkNoise.js';
 import { parseCalFile, applyCalibration } from '../utils/calParser.js';
+import PlotTooltip from './PlotTooltip.jsx';
 
 // Axis ticks identical to PlotArea so the two views look interchangeable.
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -43,6 +44,10 @@ export default function RTA({ onSaveMeasurement }) {
   const [mode, setMode]       = useState('live');   // 'live' | 'rec' | 'stopped'
   const [genOn, setGenOn]     = useState(false);
   const [genVol, setGenVol]   = useState(-10);
+  // Tooltip dismissal state — set when the user taps the X on the popup.
+  // The tooltip auto-renders again as soon as the user touches a different
+  // frequency (label changes), so dismissal is per-point, not permanent.
+  const [dismissedLabel, setDismissedLabel] = useState(null);
   const [savedToast, setSavedToast] = useState(false);
   const [curve, setCurve]     = useState([]);
   const [spl, setSpl]         = useState({ z: 0, a: 0, c: 0 });
@@ -363,7 +368,7 @@ export default function RTA({ onSaveMeasurement }) {
         {running && curve.length > 0 ? (
           <>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayCurve} margin={{ top: 10, right: 20, left: -24, bottom: 6 }}>
+              <LineChart data={displayCurve} margin={{ top: 9, right: 19, left: -25, bottom: 5 }}>
                 <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
                 <XAxis
                   dataKey="freq"
@@ -387,16 +392,14 @@ export default function RTA({ onSaveMeasurement }) {
                 />
                 <Tooltip
                   isAnimationActive={false}
-                  contentStyle={{
-                    background: '#09090b',
-                    border: '1px solid #27272a',
-                    borderRadius: '2px',
-                    fontSize: 11,
-                    fontFamily: 'JetBrains Mono, ui-monospace, monospace',
-                    color: '#f4f4f5',
-                  }}
-                  labelStyle={{ color: '#71717a', fontSize: 10, letterSpacing: '0.15em' }}
-                  labelFormatter={(v) => `${fmtHz(v)} HZ`}
+                  content={(props) => (
+                    <PlotTooltip
+                      {...props}
+                      fmtHz={fmtHz}
+                      dismissedLabel={dismissedLabel}
+                      onDismiss={setDismissedLabel}
+                    />
+                  )}
                 />
                 <Line
                   type="linear"
@@ -414,8 +417,9 @@ export default function RTA({ onSaveMeasurement }) {
             </ResponsiveContainer>
 
             {/* "dB" unit annotation overlay — CSS rather than Recharts Label
-                so it always paints reliably at the top-left of the plot. */}
-            <span className="absolute top-2 left-9 text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight">
+                so it always paints reliably. Aligned vertically with the top
+                "100" tick label and offset right of the y-axis line. */}
+            <span className="absolute top-[7px] left-[44px] text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
               dB
             </span>
 
