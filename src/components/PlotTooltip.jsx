@@ -42,10 +42,10 @@ export default function PlotTooltip({
           e.stopPropagation();
           onDismiss?.(label);
         }}
-        className="absolute top-0 right-0 w-7 h-full flex items-center justify-center text-red-500 hover:text-red-400 active:text-red-300 transition-colors"
+        className="absolute top-[-4px] right-[-2px] w-8 h-7 flex items-center justify-center text-red-500 hover:text-red-400 active:text-red-300 transition-colors"
         aria-label="Close tooltip"
       >
-        <span className="text-[16px] leading-none font-bold">×</span>
+        <span className="text-[20px] leading-none font-bold">×</span>
       </button>
 
       <div
