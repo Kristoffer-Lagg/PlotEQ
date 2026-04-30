@@ -9,6 +9,10 @@ import { makeMeasurement } from './utils/measurements.js';
 import { applySmoothing, SMOOTHING_MODES } from './utils/smoothing.js';
 
 const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
+// Visible build stamp — lets us tell at a glance whether the phone is
+// running fresh code or a cached old bundle. Bump for each behaviour
+// change we want to verify on the device.
+const BUILD_TAG = 'v0.5';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in
@@ -333,6 +337,12 @@ export default function App() {
           </span>
         </div>
       )}
+
+      {/* Tiny build stamp, bottom-left — purely diagnostic so we can tell
+          if the phone has loaded the latest deploy. */}
+      <span className="fixed bottom-1 left-1 z-50 text-[8px] font-mono text-zinc-700 pointer-events-none select-none">
+        {BUILD_TAG}
+      </span>
     </div>
   );
 }

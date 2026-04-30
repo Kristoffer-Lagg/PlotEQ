@@ -4,7 +4,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  Label,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -34,7 +33,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 10, right: 20, left: -22, bottom: 6 }}>
+            <LineChart margin={{ top: 10, right: 20, left: -24, bottom: 6 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -45,7 +44,7 @@ export default function PlotArea({ measurements }) {
                 ticks={TICKS}
                 tickFormatter={fmtHz}
                 stroke="#3f3f46"
-                tick={{ fill: '#71717a', fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
               />
               <YAxis
                 dataKey="db"
@@ -54,22 +53,8 @@ export default function PlotArea({ measurements }) {
                 ticks={[20, 30, 40, 50, 60, 70, 80, 90, 100]}
                 tickFormatter={(v) => `${v}`}
                 stroke="#3f3f46"
-                tick={{ fill: '#71717a', fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
-              >
-                {/* Unit annotation: "100" stays in the right-aligned tick column,
-                    "dB" floats just inside the plot at the top-left corner.
-                    Pass font props directly — Recharts Label ignores `style`
-                    for text rendering. */}
-                <Label
-                  value="dB"
-                  position="insideTopLeft"
-                  offset={8}
-                  fill="#71717a"
-                  fontSize={10}
-                  fontFamily="JetBrains Mono, ui-monospace, monospace"
-                  fontWeight={600}
-                />
-              </YAxis>
+                tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+              />
               <Tooltip
                 contentStyle={{
                   background: '#09090b',
@@ -97,6 +82,12 @@ export default function PlotArea({ measurements }) {
               ))}
             </LineChart>
           </ResponsiveContainer>
+          {/* "dB" unit annotation — overlaid via CSS rather than via a
+              Recharts <Label> so it renders reliably at the top-left of the
+              plot area regardless of axis margin. */}
+          <span className="absolute top-2 left-9 text-[11px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight">
+            dB
+          </span>
         </>
       )}
     </div>
