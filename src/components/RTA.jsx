@@ -388,9 +388,11 @@ export default function RTA({ onSaveMeasurement }) {
                   <Label
                     value="dB"
                     position="insideTopLeft"
-                    offset={6}
+                    offset={8}
                     fill="#71717a"
-                    style={{ fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                    fontSize={10}
+                    fontFamily="JetBrains Mono, ui-monospace, monospace"
+                    fontWeight={600}
                   />
                 </YAxis>
                 <Tooltip

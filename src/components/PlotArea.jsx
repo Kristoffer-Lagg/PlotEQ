@@ -57,13 +57,17 @@ export default function PlotArea({ measurements }) {
                 tick={{ fill: '#71717a', fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
               >
                 {/* Unit annotation: "100" stays in the right-aligned tick column,
-                    "dB" floats just inside the plot at the top-left corner. */}
+                    "dB" floats just inside the plot at the top-left corner.
+                    Pass font props directly — Recharts Label ignores `style`
+                    for text rendering. */}
                 <Label
                   value="dB"
                   position="insideTopLeft"
-                  offset={6}
+                  offset={8}
                   fill="#71717a"
-                  style={{ fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                  fontSize={10}
+                  fontFamily="JetBrains Mono, ui-monospace, monospace"
+                  fontWeight={600}
                 />
               </YAxis>
               <Tooltip
