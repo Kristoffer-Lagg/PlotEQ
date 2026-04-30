@@ -62,41 +62,42 @@ export default function App() {
     }));
   }, [measurements, smoothing]);
 
-  // Two-press back-button-to-close, only inside the installed TWA / PWA
-  // (display-mode: standalone). In a regular browser tab we leave the back
-  // button alone so users keep normal navigation. The flow is:
-  //   idle -> back press -> "Press back again to close" toast for 2s
-  //          -> back press within 2s -> save-or-leave modal
-  //          -> modal Save&close OR Close-without-saving -> exit app
-  // We use a guard history entry as the popstate trigger and re-push it
-  // whenever the user dismisses the toast or modal, so the back button keeps
-  // landing here instead of unwinding the SPA.
+  // Two-press back-button-to-close in standalone (TWA / PWA) mode only.
+  //
+  //   idle    -> back press -> toast "Press back again to close" for 2s
+  //   hinted  -> back press -> save-or-leave modal
+  //   modal   -> back press -> dismiss modal (state machine resets)
+  //
+  // Implementation notes:
+  //   * State machine lives in a ref (phaseRef) so the popstate handler
+  //     reads the current phase synchronously — React's setState is async,
+  //     and rapid back presses can fire popstate again before the previous
+  //     render has committed.
+  //   * We keep a *buffer* of guard history entries instead of just one,
+  //     so a stray extra popstate (which TWAs sometimes emit) can't deplete
+  //     history and let the back press through to Chrome (which would close
+  //     the app). The buffer is topped back up after each consumed pop.
   const hintTimerRef = useRef(null);
-  const guardCountRef = useRef(0);
-  // Mirror reactive state into a ref so the popstate handler (registered
-  // once on mount) always reads the latest values without needing to be
-  // re-bound — re-binding in a [backHint, leaveOpen]-keyed effect would
-  // also push extra guard history entries on every render and break the
-  // 2-press flow (the second back press would just pop a stale guard).
-  const lifecycleRef = useRef({ backHint: false, leaveOpen: false });
-  useEffect(() => {
-    lifecycleRef.current = { backHint, leaveOpen };
-  }, [backHint, leaveOpen]);
+  const phaseRef = useRef('idle'); // 'idle' | 'hinted' | 'modal'
+  const guardDepthRef = useRef(0);
+  const GUARD_TARGET = 3;
 
-  const pushGuard = useCallback(() => {
+  const topUpGuards = useCallback(() => {
     try {
-      window.history.pushState({ ploteqGuard: true }, '');
-      guardCountRef.current += 1;
+      while (guardDepthRef.current < GUARD_TARGET) {
+        window.history.pushState({ ploteqGuard: true }, '');
+        guardDepthRef.current += 1;
+      }
     } catch {}
   }, []);
 
   const exitApp = useCallback(() => {
     // Best-effort close: window.close() works for TWAs and PWAs launched
-    // from the home screen. If the runtime refuses (regular tab), unwind any
-    // guard entries we pushed so the user lands back on whatever was before.
+    // from the home screen. If the runtime refuses, unwind every guard
+    // we've pushed so the user lands back on whatever was before.
     try { window.close(); } catch {}
     setTimeout(() => {
-      const back = guardCountRef.current + 1;
+      const back = guardDepthRef.current + 1;
       if (back > 0) {
         try { window.history.go(-back); } catch {}
       }
@@ -109,36 +110,41 @@ export default function App() {
       window.navigator.standalone === true;
     if (!standalone) return;
 
-    pushGuard();
+    topUpGuards();
 
     const onPopState = () => {
-      // The guard was just consumed by the back press.
-      guardCountRef.current = Math.max(0, guardCountRef.current - 1);
+      // A guard was just consumed by the back press.
+      guardDepthRef.current = Math.max(0, guardDepthRef.current - 1);
 
-      const { backHint: bh, leaveOpen: lo } = lifecycleRef.current;
+      // Read + advance phase synchronously so concurrent popstates can't
+      // re-process the same phase.
+      const phase = phaseRef.current;
 
-      if (lo) {
-        // Back inside the modal cancels the modal; re-arm the guard so the
-        // next back press starts the flow over.
+      if (phase === 'modal') {
+        phaseRef.current = 'idle';
         setLeaveOpen(false);
-        pushGuard();
+        topUpGuards();
         return;
       }
 
-      if (bh) {
-        // Second press within the 2s window — open the save-or-leave modal.
+      if (phase === 'hinted') {
+        phaseRef.current = 'modal';
         clearTimeout(hintTimerRef.current);
         setBackHint(false);
         setLeaveOpen(true);
-        pushGuard();
+        topUpGuards();
         return;
       }
 
-      // First press — show the toast and re-arm the guard for press #2.
+      // idle -> hinted
+      phaseRef.current = 'hinted';
       setBackHint(true);
-      pushGuard();
+      topUpGuards();
       clearTimeout(hintTimerRef.current);
-      hintTimerRef.current = setTimeout(() => setBackHint(false), 2000);
+      hintTimerRef.current = setTimeout(() => {
+        if (phaseRef.current === 'hinted') phaseRef.current = 'idle';
+        setBackHint(false);
+      }, 2000);
     };
 
     window.addEventListener('popstate', onPopState);
@@ -146,8 +152,7 @@ export default function App() {
       window.removeEventListener('popstate', onPopState);
       clearTimeout(hintTimerRef.current);
     };
-    // Mount once. The handler reads current state via lifecycleRef so it
-    // never goes stale, and we never re-push extra guard entries.
+    // Mount once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
