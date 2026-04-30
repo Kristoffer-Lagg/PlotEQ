@@ -21,10 +21,12 @@ const fmtHz = (v) => {
 
 export default function PlotArea({ measurements }) {
   const visible = measurements.filter((m) => m.visible);
-  // Track which tooltip the user has dismissed (by frequency label) so the
-  // X close button has somewhere to record state. The tooltip auto-resets
-  // when the user touches a different point on the curve.
-  const [dismissedLabel, setDismissedLabel] = useState(null);
+  // When the user taps the X on the tooltip, suppress all tooltips for a
+  // short window so the same tap leaking through to the chart underneath
+  // doesn't immediately re-summon the popup. After the window expires the
+  // next touch-on-curve naturally re-shows the tooltip.
+  const [suppressedUntil, setSuppressedUntil] = useState(0);
+  const dismissTooltip = () => setSuppressedUntil(Date.now() + 500);
 
   return (
     <div className="relative flex-1 min-w-0 h-full bg-zinc-950">
@@ -38,7 +40,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 9, right: 19, left: -25, bottom: 5 }}>
+            <LineChart margin={{ top: 8, right: 18, left: -26, bottom: 4 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -66,8 +68,8 @@ export default function PlotArea({ measurements }) {
                   <PlotTooltip
                     {...props}
                     fmtHz={fmtHz}
-                    dismissedLabel={dismissedLabel}
-                    onDismiss={setDismissedLabel}
+                    suppressedUntil={suppressedUntil}
+                    onDismiss={dismissTooltip}
                   />
                 )}
               />

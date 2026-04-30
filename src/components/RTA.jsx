@@ -44,10 +44,10 @@ export default function RTA({ onSaveMeasurement }) {
   const [mode, setMode]       = useState('live');   // 'live' | 'rec' | 'stopped'
   const [genOn, setGenOn]     = useState(false);
   const [genVol, setGenVol]   = useState(-10);
-  // Tooltip dismissal state — set when the user taps the X on the popup.
-  // The tooltip auto-renders again as soon as the user touches a different
-  // frequency (label changes), so dismissal is per-point, not permanent.
-  const [dismissedLabel, setDismissedLabel] = useState(null);
+  // Tooltip-X tap dismisses the popup for ~500ms so the same tap leaking
+  // through to the chart underneath doesn't immediately re-summon it.
+  const [suppressedUntil, setSuppressedUntil] = useState(0);
+  const dismissTooltip = () => setSuppressedUntil(Date.now() + 500);
   const [savedToast, setSavedToast] = useState(false);
   const [curve, setCurve]     = useState([]);
   const [spl, setSpl]         = useState({ z: 0, a: 0, c: 0 });
@@ -368,7 +368,7 @@ export default function RTA({ onSaveMeasurement }) {
         {running && curve.length > 0 ? (
           <>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayCurve} margin={{ top: 9, right: 19, left: -25, bottom: 5 }}>
+              <LineChart data={displayCurve} margin={{ top: 8, right: 18, left: -26, bottom: 4 }}>
                 <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
                 <XAxis
                   dataKey="freq"
@@ -396,8 +396,8 @@ export default function RTA({ onSaveMeasurement }) {
                     <PlotTooltip
                       {...props}
                       fmtHz={fmtHz}
-                      dismissedLabel={dismissedLabel}
-                      onDismiss={setDismissedLabel}
+                      suppressedUntil={suppressedUntil}
+                      onDismiss={dismissTooltip}
                     />
                   )}
                 />

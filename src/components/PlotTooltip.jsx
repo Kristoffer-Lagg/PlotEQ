@@ -6,43 +6,54 @@ import React from 'react';
  *
  * Recharts owns the tooltip's visibility (it shows it whenever the cursor
  * or finger is on a data point), so we can't truly "close" it from inside
- * the content. Instead we:
- *   1. record which label (= frequency) the user has dismissed in parent
- *      state via `onDismiss(label)`
- *   2. return null from the content while `dismissedLabel === label`
- *   3. reset automatically when the user moves to a different label
- *      (the parent handles that — when label changes from the dismissed
- *      one, the tooltip naturally renders again)
+ * the content. Instead, when the user taps X, the parent records a short
+ * suppression window (~500 ms) during which we always return null — that
+ * gives the user a moment to see the plot without the tooltip popping
+ * back up from the same tap leaking through to the chart. After the
+ * window expires, normal hover/touch tooltips resume.
  */
 export default function PlotTooltip({
   active,
   payload,
   label,
   fmtHz,
-  dismissedLabel,
+  suppressedUntil = 0,
   onDismiss,
 }) {
   if (!active || !payload?.length) return null;
-  if (dismissedLabel != null && dismissedLabel === label) return null;
+  if (Date.now() < suppressedUntil) return null;
 
   return (
     <div
       className="bg-zinc-950/95 border border-zinc-800 rounded-sm shadow-lg backdrop-blur-sm font-mono text-zinc-100 relative pointer-events-auto"
       style={{ padding: '6px 30px 6px 8px', fontSize: 11 }}
     >
-      {/* Close button — bigger hit area on the right edge so a fingertip
-          can reliably tap it without grazing the data rows. */}
+      {/* Close button — sits outside the top-right corner. Both pointer
+          and touch handlers stopPropagation so the tap doesn't bubble to
+          the chart underneath; the parent also sets a suppression window
+          via onDismiss so any event that DID leak through still gets
+          ignored for the next ~500ms. */}
       <button
         type="button"
-        onClick={(e) => {
+        onPointerDown={(e) => {
           e.stopPropagation();
-          onDismiss?.(label);
+          e.preventDefault();
+          onDismiss?.();
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
         }}
         onTouchEnd={(e) => {
           e.stopPropagation();
-          onDismiss?.(label);
+          e.preventDefault();
+          onDismiss?.();
         }}
-        className="absolute top-[-4px] right-[-2px] w-8 h-7 flex items-center justify-center text-red-500 hover:text-red-400 active:text-red-300 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss?.();
+        }}
+        className="absolute top-[-4px] right-[-4px] w-8 h-7 flex items-center justify-center text-red-500 hover:text-red-400 active:text-red-300 transition-colors touch-manipulation"
+        style={{ touchAction: 'none' }}
         aria-label="Close tooltip"
       >
         <span className="text-[20px] leading-none font-bold">×</span>
