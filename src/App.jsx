@@ -12,7 +12,7 @@ const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 // Visible build stamp — lets us tell at a glance whether the phone is
 // running fresh code or a cached old bundle. Bump for each behaviour
 // change we want to verify on the device.
-const BUILD_TAG = 'v0.8';
+const BUILD_TAG = 'v0.9';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in

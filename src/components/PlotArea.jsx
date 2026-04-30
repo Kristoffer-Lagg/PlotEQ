@@ -11,12 +11,19 @@ import {
 import PlotTooltip from './PlotTooltip.jsx';
 
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-// Tick labels. Suffix "Hz" onto the highest tick so we can drop the separate
-// axis label entirely — same information, less chrome, more plot area.
+// Frequency label formatter. Used both by axis ticks (fixed, clean integer
+// values like 100, 1000, 5000) and by the hover tooltip (arbitrary values
+// like 1234.5678). Rounds aggressively for tooltip readability while still
+// rendering the nice "1k" / "10k" form for tick values.
 const fmtHz = (v) => {
-  if (v === 20000) return '20k Hz';
-  if (v >= 1000)   return `${v / 1000}k`;
-  return `${v}`;
+  if (v == null || Number.isNaN(v)) return '';
+  if (v >= 19500) return '20k Hz';
+  if (v >= 10000) return `${Math.round(v / 1000)}k`;
+  if (v >= 1000)  {
+    const k = v / 1000;
+    return Number.isInteger(k) ? `${k}k` : `${k.toFixed(1)}k`;
+  }
+  return `${Math.round(v)}`;
 };
 
 export default function PlotArea({ measurements }) {
