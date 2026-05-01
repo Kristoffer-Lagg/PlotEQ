@@ -8,9 +8,10 @@
     <link rel="icon" type="image/png" href="/icon-512.png" />
     <link rel="apple-touch-icon" href="/icon-512.png" />
     <title>PlotEQ</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Fonts are self-hosted via @fontsource-variable/{inter,jetbrains-mono}
+         (imported in main.jsx). The Google Fonts CDN link was removed so the
+         app works fully offline inside the Capacitor build and never leaks
+         a request to fonts.google.com on first paint. -->
   </head>
   <body class="bg-zinc-950">
     <div id="root"></div>

@@ -57,7 +57,7 @@ export default function PlotArea({ measurements }) {
                 ticks={TICKS}
                 tickFormatter={fmtHz}
                 stroke="#3f3f46"
-                tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                tick={{ fill: '#71717a', fontSize: 9, fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace' }}
               />
               <YAxis
                 dataKey="db"
@@ -66,7 +66,7 @@ export default function PlotArea({ measurements }) {
                 ticks={[20, 30, 40, 50, 60, 70, 80, 90, 100]}
                 tickFormatter={(v) => `${v}`}
                 stroke="#3f3f46"
-                tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }}
+                tick={{ fill: '#71717a', fontSize: 9, fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace' }}
               />
               <Tooltip
                 isAnimationActive={false}

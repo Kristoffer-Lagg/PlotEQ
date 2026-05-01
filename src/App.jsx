@@ -7,12 +7,14 @@ import ConfirmModal from './components/ConfirmModal.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import { makeMeasurement } from './utils/measurements.js';
 import { applySmoothing, SMOOTHING_MODES } from './utils/smoothing.js';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 
 const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 // Visible build stamp — lets us tell at a glance whether the phone is
 // running fresh code or a cached old bundle. Bump for each behaviour
 // change we want to verify on the device.
-const BUILD_TAG = 'v0.12';
+const BUILD_TAG = 'v0.13';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in
@@ -66,21 +68,22 @@ export default function App() {
     }));
   }, [measurements, smoothing]);
 
-  // Two-press back-button-to-close in standalone (TWA / PWA) mode only.
+  // Two-press back-button-to-close in installed mode (Capacitor or PWA/TWA).
   //
   //   idle    -> back press -> toast "Press back again to close" for 2s
   //   hinted  -> back press -> save-or-leave modal
   //   modal   -> back press -> dismiss modal (state machine resets)
   //
-  // Implementation notes:
-  //   * State machine lives in a ref (phaseRef) so the popstate handler
-  //     reads the current phase synchronously — React's setState is async,
-  //     and rapid back presses can fire popstate again before the previous
-  //     render has committed.
-  //   * We keep a *buffer* of guard history entries instead of just one,
-  //     so a stray extra popstate (which TWAs sometimes emit) can't deplete
-  //     history and let the back press through to Chrome (which would close
-  //     the app). The buffer is topped back up after each consumed pop.
+  // Two underlying mechanisms depending on runtime:
+  //
+  //   * Capacitor (native APK): real Android back-button event via
+  //     @capacitor/app. Reliable, unambiguous, no history hacks needed.
+  //     This is the primary path for the eventual Play Store build.
+  //   * Browser standalone / Bubblewrap TWA fallback: history pushState
+  //     + popstate trick. Brittle on TWA in practice, but kept for the
+  //     legacy installation that's still on the phone during migration.
+  //
+  // The state-machine logic is shared; only the trigger differs.
   const hintTimerRef = useRef(null);
   const phaseRef = useRef('idle'); // 'idle' | 'hinted' | 'modal'
   const guardDepthRef = useRef(0);
@@ -95,10 +98,14 @@ export default function App() {
     } catch {}
   }, []);
 
-  const exitApp = useCallback(() => {
-    // Best-effort close: window.close() works for TWAs and PWAs launched
-    // from the home screen. If the runtime refuses, unwind every guard
-    // we've pushed so the user lands back on whatever was before.
+  const exitApp = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      try { await CapApp.exitApp(); return; } catch {}
+    }
+    // Browser / TWA fallback: window.close() works for TWAs and PWAs
+    // launched from the home screen. If the runtime refuses, unwind
+    // every guard we've pushed so the user lands back on whatever was
+    // before.
     try { window.close(); } catch {}
     setTimeout(() => {
       const back = guardDepthRef.current + 1;
@@ -108,7 +115,61 @@ export default function App() {
     }, 50);
   }, []);
 
+  // Shared advance-the-state-machine handler. Used by both back-button
+  // sources. Always reads/advances phaseRef synchronously so concurrent
+  // events can't reprocess the same phase.
+  const handleBack = useCallback(() => {
+    const phase = phaseRef.current;
+
+    if (phase === 'modal') {
+      phaseRef.current = 'idle';
+      setLeaveOpen(false);
+      return;
+    }
+
+    if (phase === 'hinted') {
+      phaseRef.current = 'modal';
+      clearTimeout(hintTimerRef.current);
+      setBackHint(false);
+      setLeaveOpen(true);
+      return;
+    }
+
+    // idle -> hinted
+    phaseRef.current = 'hinted';
+    setBackHint(true);
+    clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => {
+      if (phaseRef.current === 'hinted') phaseRef.current = 'idle';
+      setBackHint(false);
+    }, 2000);
+  }, []);
+
+  // Native back-button (Capacitor only). Preferred path on Android — no
+  // history-stack manipulation, no popstate quirks. The listener fires
+  // exactly once per Android back press.
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let removeListener = () => {};
+    CapApp.addListener('backButton', () => {
+      handleBack();
+    }).then((handle) => {
+      removeListener = () => handle.remove();
+    });
+
+    return () => {
+      removeListener();
+      clearTimeout(hintTimerRef.current);
+    };
+  }, [handleBack]);
+
+  // Browser/TWA fallback (popstate-based). Active only when NOT running
+  // under Capacitor, and only in standalone display mode (so a regular
+  // browser tab keeps normal navigation).
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+
     const standalone =
       window.matchMedia?.('(display-mode: standalone)')?.matches ||
       window.navigator.standalone === true;
@@ -117,38 +178,9 @@ export default function App() {
     topUpGuards();
 
     const onPopState = () => {
-      // A guard was just consumed by the back press.
       guardDepthRef.current = Math.max(0, guardDepthRef.current - 1);
-
-      // Read + advance phase synchronously so concurrent popstates can't
-      // re-process the same phase.
-      const phase = phaseRef.current;
-
-      if (phase === 'modal') {
-        phaseRef.current = 'idle';
-        setLeaveOpen(false);
-        topUpGuards();
-        return;
-      }
-
-      if (phase === 'hinted') {
-        phaseRef.current = 'modal';
-        clearTimeout(hintTimerRef.current);
-        setBackHint(false);
-        setLeaveOpen(true);
-        topUpGuards();
-        return;
-      }
-
-      // idle -> hinted
-      phaseRef.current = 'hinted';
-      setBackHint(true);
+      handleBack();
       topUpGuards();
-      clearTimeout(hintTimerRef.current);
-      hintTimerRef.current = setTimeout(() => {
-        if (phaseRef.current === 'hinted') phaseRef.current = 'idle';
-        setBackHint(false);
-      }, 2000);
     };
 
     window.addEventListener('popstate', onPopState);
