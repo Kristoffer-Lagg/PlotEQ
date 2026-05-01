@@ -375,7 +375,7 @@ export default function RTA({ onSaveMeasurement }) {
         {running && curve.length > 0 ? (
           <>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayCurve} margin={{ top: 8, right: 18, left: -26, bottom: 4 }}>
+              <LineChart data={displayCurve} margin={{ top: 5, right: 16, left: -27, bottom: 1 }}>
                 <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
                 <XAxis
                   dataKey="freq"
@@ -426,7 +426,7 @@ export default function RTA({ onSaveMeasurement }) {
             {/* "dB" unit annotation overlay — CSS rather than Recharts Label
                 so it always paints reliably. Aligned vertically with the top
                 "100" tick label and offset right of the y-axis line. */}
-            <span className="absolute top-[5px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
+            <span className="absolute top-[2px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
               dB
             </span>
 

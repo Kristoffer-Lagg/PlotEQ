@@ -46,7 +46,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 8, right: 18, left: -26, bottom: 4 }}>
+            <LineChart margin={{ top: 5, right: 16, left: -27, bottom: 1 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"
@@ -98,7 +98,7 @@ export default function PlotArea({ measurements }) {
               reliably regardless of axis margin. Vertically aligned with
               the top-most "100" tick label, with a small horizontal gap
               from the y-axis line. */}
-          <span className="absolute top-[5px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
+          <span className="absolute top-[2px] left-[44px] text-[9px] font-semibold text-zinc-500 pointer-events-none select-none font-mono tracking-tight leading-none">
             dB
           </span>
         </>
