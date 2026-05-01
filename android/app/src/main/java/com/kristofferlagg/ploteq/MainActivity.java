@@ -28,6 +28,10 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Custom plugins must be registered before super.onCreate so the
+        // Capacitor bridge picks them up at startup.
+        registerPlugin(AudioInputsPlugin.class);
+
         super.onCreate(savedInstanceState);
 
         // Keep the screen on while a measurement / RTA is running. Cheap

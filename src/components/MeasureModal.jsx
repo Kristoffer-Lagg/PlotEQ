@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createSweep } from '../utils/audioEngine.js';
 import { parseCalFile, applyCalibration } from '../utils/calParser.js';
+import { listNativeInputs, pickPreferredInputName } from '../utils/nativeAudio.js';
 
 const QUALITIES = ['128k', '256k', '512k', '1M', '2M', '4M'];
 const STORAGE_MIC_KEY = 'ploteq:mic:last';
@@ -17,6 +18,11 @@ export default function MeasureModal({ open, onClose, onComplete }) {
   // Mic state
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  // Native-side preferred input name (USB / Bluetooth / wired). On
+  // Android Capacitor this gives us the actual hardware name even when
+  // navigator.mediaDevices.enumerateDevices() only reports "Default".
+  // Empty string when only the built-in mic is connected, or on web.
+  const [nativeMicName, setNativeMicName] = useState('');
 
   // Calibration state
   const [calData, setCalData] = useState(null);       // parsed cal, null = no cal
@@ -36,6 +42,14 @@ export default function MeasureModal({ open, onClose, onComplete }) {
   // become available — so we trigger a throwaway permission request on first
   // open, then enumerate.
   const enumerate = useCallback(async (keepDeviceId) => {
+    // Ask the native plugin (no-op outside Capacitor) what hardware
+    // mic it sees. Used purely as a label decoration — getUserMedia
+    // still picks the device based on the selected web deviceId.
+    try {
+      const nativeDevices = await listNativeInputs();
+      setNativeMicName(pickPreferredInputName(nativeDevices) || '');
+    } catch {}
+
     try {
       const all = await navigator.mediaDevices.enumerateDevices();
       const mics = all.filter((d) => d.kind === 'audioinput');
@@ -346,12 +360,23 @@ export default function MeasureModal({ open, onClose, onComplete }) {
               className={inputCls}
             >
               {devices.length === 0
-                ? <option value="">Default microphone</option>
-                : devices.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label || `Microphone (${d.deviceId.slice(0, 8)}…)`}
-                    </option>
-                  ))
+                ? <option value="">{nativeMicName || 'Default microphone'}</option>
+                : devices.map((d, i) => {
+                    // When the WebView only knows generic "Default ..." labels
+                    // (Android Chrome / Capacitor limitation), and we have a
+                    // real device name from the native AudioManager plugin,
+                    // use that for the first / default entry.
+                    const isGeneric = !d.label || /^default/i.test(d.label);
+                    const label =
+                      isGeneric && nativeMicName && i === 0
+                        ? nativeMicName
+                        : d.label || `Microphone (${d.deviceId.slice(0, 8)}…)`;
+                    return (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {label}
+                      </option>
+                    );
+                  })
               }
             </select>
           </div>

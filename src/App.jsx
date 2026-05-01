@@ -16,7 +16,7 @@ const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 // Visible build stamp — lets us tell at a glance whether the phone is
 // running fresh code or a cached old bundle. Bump for each behaviour
 // change we want to verify on the device.
-const BUILD_TAG = 'v0.16';
+const BUILD_TAG = 'v0.17';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in
@@ -266,50 +266,47 @@ export default function App() {
 
   return (
     <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-100">
-      {/* Top bar — full controls on the Measure tab, minimal on the RTA tab. */}
-      <header className="h-12 shrink-0 border-b border-zinc-800/70 bg-zinc-950 flex items-center justify-between px-5">
-        {activeTab === 'measure' ? (
-          <>
-            <button
-              onClick={() => setMeasureOpen(true)}
-              className="flex items-center gap-2 px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-sky-500 hover:bg-sky-400 text-zinc-950 transition-all shadow-[0_0_24px_-6px_rgba(56,189,248,0.85)] hover:shadow-[0_0_32px_-4px_rgba(56,189,248,1)]"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 animate-pulse" />
-              Measure
-            </button>
-            <div className="flex items-center gap-5">
-              <h1 className="text-[11px] font-extrabold tracking-[0.45em] text-zinc-100 uppercase select-none">
-                Plot<span className="text-sky-400">EQ</span>
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold tracking-[0.3em] uppercase text-zinc-600">
-                  Smooth
-                </span>
-                <select
-                  value={smoothing}
-                  onChange={(e) => setSmoothing(e.target.value)}
-                  className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-sky-500/60 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-300 px-2 py-1 rounded-sm outline-none transition-colors cursor-pointer"
-                  title="Re-smooth all visible curves without re-measuring"
-                >
-                  {SMOOTHING_MODES.map((m) => (
-                    <option key={m.value} value={m.value} className="bg-zinc-950 text-zinc-300">
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </>
-        ) : (
-          // RTA: empty left/center. Full width available for the plot below.
-          <div />
-        )}
-        <div className="flex items-center gap-2">
-          <button onClick={() => setSaveOpen(true)} className={headerBtn}>
-            Save
+      {/* Top bar — only on the Measure tab. RTA has no header so the
+          live plot can use the full vertical space (mobile screens are
+          short, every pixel matters). */}
+      {activeTab === 'measure' && (
+        <header className="h-12 shrink-0 border-b border-zinc-800/70 bg-zinc-950 flex items-center justify-between px-5">
+          <button
+            onClick={() => setMeasureOpen(true)}
+            className="flex items-center gap-2 px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-sky-500 hover:bg-sky-400 text-zinc-950 transition-all shadow-[0_0_24px_-6px_rgba(56,189,248,0.85)] hover:shadow-[0_0_32px_-4px_rgba(56,189,248,1)]"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 animate-pulse" />
+            Measure
           </button>
-        </div>
-      </header>
+          <div className="flex items-center gap-5">
+            <h1 className="text-[11px] font-extrabold tracking-[0.45em] text-zinc-100 uppercase select-none">
+              Plot<span className="text-sky-400">EQ</span>
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-bold tracking-[0.3em] uppercase text-zinc-600">
+                Smooth
+              </span>
+              <select
+                value={smoothing}
+                onChange={(e) => setSmoothing(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-sky-500/60 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-300 px-2 py-1 rounded-sm outline-none transition-colors cursor-pointer"
+                title="Re-smooth all visible curves without re-measuring"
+              >
+                {SMOOTHING_MODES.map((m) => (
+                  <option key={m.value} value={m.value} className="bg-zinc-950 text-zinc-300">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSaveOpen(true)} className={headerBtn}>
+              Save
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Body — sidebar only on Measure tab; RTA uses the full width. */}
       <div className="flex-1 min-h-0 flex">
