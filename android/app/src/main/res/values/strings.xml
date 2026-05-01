@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PlotEQ</string>
+    <string name="title_activity_main">PlotEQ</string>
+    <string name="package_name">com.kristofferlagg.ploteq</string>
+    <string name="custom_url_scheme">com.kristofferlagg.ploteq</string>
+</resources>
