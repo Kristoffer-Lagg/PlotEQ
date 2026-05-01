@@ -9,12 +9,14 @@ import { makeMeasurement } from './utils/measurements.js';
 import { applySmoothing, SMOOTHING_MODES } from './utils/smoothing.js';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 // Visible build stamp — lets us tell at a glance whether the phone is
 // running fresh code or a cached old bundle. Bump for each behaviour
 // change we want to verify on the device.
-const BUILD_TAG = 'v0.13';
+const BUILD_TAG = 'v0.14';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in
@@ -28,30 +30,7 @@ export default function App() {
   const [smoothing, setSmoothing] = useState(() => {
     try { return localStorage.getItem(SMOOTHING_STORAGE_KEY) || 'none'; } catch { return 'none'; }
   });
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('measure');
-
-  // Track fullscreen state so the button label reflects reality even when the
-  // user exits via the ESC key or the browser's native UI.
-  useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
-  }, []);
-
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      // iOS Safari on iPhone doesn't expose the Fullscreen API on arbitrary
-      // elements — silently ignore. Users can still "Add to Home Screen" for
-      // a chromeless experience.
-    }
-  };
 
   useEffect(() => {
     try { localStorage.setItem(SMOOTHING_STORAGE_KEY, smoothing); } catch {}
@@ -218,10 +197,40 @@ export default function App() {
     const json = JSON.stringify(payload, null, 2);
     const suggested = `ploteq-${Date.now()}.json`;
 
+    // ---- Native (Capacitor) path ---------------------------------------
+    // Write to the app's cache, then open the system share sheet so the
+    // user picks the destination (Drive, Files, email, …). The cache copy
+    // is the file backing the share — it gets cleaned up by Android in
+    // the normal way.
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const writeResult = await Filesystem.writeFile({
+          path: suggested,
+          data: json,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: 'PlotEQ measurement',
+          text: suggested,
+          url: writeResult.uri,
+          dialogTitle: 'Save measurement',
+        });
+      } catch (err) {
+        // User can cancel the share sheet — that throws but isn't an error.
+        if (err?.message && !/cancel/i.test(err.message)) {
+          console.error('Save failed:', err);
+        }
+      }
+      setSaveOpen(false);
+      return;
+    }
+
+    // ---- Browser path ---------------------------------------------------
     // Prefer the File System Access API so the user picks the destination
     // (Chrome desktop + Chrome Android). Falls back to anchor-download on
     // browsers that don't expose showSaveFilePicker (Firefox, Safari, older
-    // Chrome) — those land in the default Downloads folder as before.
+    // Chrome) — those land in the default Downloads folder.
     if (typeof window.showSaveFilePicker === 'function') {
       try {
         const handle = await window.showSaveFilePicker({
@@ -235,7 +244,6 @@ export default function App() {
         await writable.write(json);
         await writable.close();
       } catch (err) {
-        // AbortError = user cancelled the picker; swallow silently.
         if (err?.name !== 'AbortError') console.error(err);
       }
       setSaveOpen(false);
@@ -252,8 +260,7 @@ export default function App() {
     setSaveOpen(false);
   };
 
-  // Shared header-button class string for the two right-side icons
-  // (Fullscreen, Save) that appear on both tabs.
+  // Shared header-button class string for the right-side Save button.
   const headerBtn =
     'px-4 py-1.5 text-[10px] font-bold tracking-[0.25em] uppercase rounded-sm bg-transparent border border-zinc-800 hover:border-sky-500/60 hover:text-sky-400 text-zinc-400 transition-colors';
 
@@ -298,13 +305,6 @@ export default function App() {
           <div />
         )}
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            className={headerBtn}
-          >
-            {isFullscreen ? 'Exit FS' : 'Fullscreen'}
-          </button>
           <button onClick={() => setSaveOpen(true)} className={headerBtn}>
             Save
           </button>
