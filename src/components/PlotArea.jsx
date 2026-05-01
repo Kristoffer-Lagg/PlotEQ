@@ -46,7 +46,7 @@ export default function PlotArea({ measurements }) {
             {/* Per-Line `data` props: each measurement plots against its own
                 {freq, db} curve — so mixed-length legacy/new curves co-exist
                 without index-aligned merging. */}
-            <LineChart margin={{ top: 5, right: 16, left: -27, bottom: 1 }}>
+            <LineChart margin={{ top: 5, right: 16, left: -27, bottom: -4 }}>
               <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
               <XAxis
                 dataKey="freq"

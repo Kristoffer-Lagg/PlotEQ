@@ -375,7 +375,7 @@ export default function RTA({ onSaveMeasurement }) {
         {running && curve.length > 0 ? (
           <>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayCurve} margin={{ top: 5, right: 16, left: -27, bottom: 1 }}>
+              <LineChart data={displayCurve} margin={{ top: 5, right: 16, left: -27, bottom: -4 }}>
                 <CartesianGrid stroke="#18181b" strokeDasharray="2 4" />
                 <XAxis
                   dataKey="freq"
