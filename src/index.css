@@ -4,7 +4,13 @@
 
 html, body, #root {
   height: 100%;
+  width: 100%;
   margin: 0;
+  padding: 0;
+  /* Combined with viewport-fit=cover in index.html and the activity's
+     windowLayoutInDisplayCutoutMode=always, this lets the WebView render
+     edge-to-edge without leaving a blank safe-area strip on the
+     curved-edge side in landscape. */
   /* "Inter Variable" is the family name registered by
      @fontsource-variable/inter; "Inter" is kept as a fallback for any
      environment where the variable file failed to load (e.g. some
