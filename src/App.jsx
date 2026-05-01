@@ -9,14 +9,13 @@ import { makeMeasurement } from './utils/measurements.js';
 import { applySmoothing, SMOOTHING_MODES } from './utils/smoothing.js';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+import { saveFileWithPicker } from './utils/nativeFile.js';
 
 const SMOOTHING_STORAGE_KEY = 'ploteq:smoothing:v1';
 // Visible build stamp — lets us tell at a glance whether the phone is
 // running fresh code or a cached old bundle. Bump for each behaviour
 // change we want to verify on the device.
-const BUILD_TAG = 'v0.17';
+const BUILD_TAG = 'v0.18';
 
 export default function App() {
   // Cold start: always begin with an empty list. Measurements live only in
@@ -198,29 +197,20 @@ export default function App() {
     const suggested = `ploteq-${Date.now()}.json`;
 
     // ---- Native (Capacitor) path ---------------------------------------
-    // Write to the app's cache, then open the system share sheet so the
-    // user picks the destination (Drive, Files, email, …). The cache copy
-    // is the file backing the share — it gets cleaned up by Android in
-    // the normal way.
+    // Open Android's Storage Access Framework picker via our custom
+    // FileSaver plugin — user navigates to whichever folder on the
+    // phone they want (Documents, Downloads, a subfolder, …) and the
+    // file is written there directly. No share sheet, no cloud-only
+    // detour.
     if (Capacitor.isNativePlatform()) {
       try {
-        const writeResult = await Filesystem.writeFile({
-          path: suggested,
+        await saveFileWithPicker({
+          suggestedName: suggested,
+          mimeType: 'application/json',
           data: json,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
-        });
-        await Share.share({
-          title: 'PlotEQ measurement',
-          text: suggested,
-          url: writeResult.uri,
-          dialogTitle: 'Save measurement',
         });
       } catch (err) {
-        // User can cancel the share sheet — that throws but isn't an error.
-        if (err?.message && !/cancel/i.test(err.message)) {
-          console.error('Save failed:', err);
-        }
+        console.error('Save failed:', err);
       }
       setSaveOpen(false);
       return;

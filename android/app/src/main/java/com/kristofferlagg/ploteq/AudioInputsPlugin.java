@@ -19,10 +19,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  *
  * Method:
  *   list() -> { devices: [{ id, name, type, typeName }, ...] }
- *
- * Where `type` is the raw AudioDeviceInfo.TYPE_* int and `typeName`
- * is a friendly tag the JS side can match on (builtin / usb /
- * bluetooth / wired / other).
  */
 @CapacitorPlugin(name = "AudioInputs")
 public class AudioInputsPlugin extends Plugin {

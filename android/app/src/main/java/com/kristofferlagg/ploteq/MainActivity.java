@@ -31,6 +31,7 @@ public class MainActivity extends BridgeActivity {
         // Custom plugins must be registered before super.onCreate so the
         // Capacitor bridge picks them up at startup.
         registerPlugin(AudioInputsPlugin.class);
+        registerPlugin(FileSaverPlugin.class);
 
         super.onCreate(savedInstanceState);
 
