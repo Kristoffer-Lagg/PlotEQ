@@ -32,6 +32,7 @@ public class MainActivity extends BridgeActivity {
         // Capacitor bridge picks them up at startup.
         registerPlugin(AudioInputsPlugin.class);
         registerPlugin(FileSaverPlugin.class);
+        registerPlugin(PinkPlayerPlugin.class);
 
         super.onCreate(savedInstanceState);
 

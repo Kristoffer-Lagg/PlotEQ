@@ -1,3 +1,5 @@
+import { createNativePinkPlayer, nativePinkPlayerAvailable } from './nativePinkPlayer.js';
+
 // Stereo random pink noise generator for Web Audio.
 //
 // Pink noise = white noise shaped at −3 dB/octave. Each octave carries equal
@@ -38,6 +40,15 @@ function fillPinkChannel(data) {
 }
 
 export function createPinkNoisePlayer(audioCtx, durationSec = 10) {
+  // On Capacitor (Android APK), output via the native AudioTrack
+  // plugin instead of Web Audio. Samsung's WebView attenuates Web
+  // Audio output to near-silence whenever the mic is concurrently
+  // open ("anti-spy" / feedback prevention). Native AudioTrack with
+  // explicit USAGE_MEDIA isn't subject to that policy.
+  if (nativePinkPlayerAvailable()) {
+    return createNativePinkPlayer();
+  }
+
   const sampleRate = audioCtx.sampleRate;
   const frames    = Math.round(sampleRate * durationSec);
   const buffer    = audioCtx.createBuffer(2, frames, sampleRate);
