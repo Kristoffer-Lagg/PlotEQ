@@ -65,6 +65,11 @@ export default function RTA({ onSaveMeasurement }) {
   // routes to. Updated every second while running. Lets us see if BT
   // drops from a2dp -> sco when pink noise quiets down.
   const [outputName, setOutputName] = useState('');
+  // Diagnostic: AudioContext state (running / suspended / closed /
+  // interrupted). If Android suspends the context — e.g. Samsung's
+  // privacy mic indicator stealing focus — pink noise goes silent
+  // even though the routing is fine. We auto-resume() on each tick.
+  const [ctxState, setCtxState] = useState('');
 
   // Refs for audio resources so we can tear them down cleanly.
   const audioCtxRef   = useRef(null);
@@ -124,6 +129,7 @@ export default function RTA({ onSaveMeasurement }) {
     setCurve([]);
     setSpl({ z: 0, a: 0, c: 0 });
     setOutputName('');
+    setCtxState('');
   }, []);
 
   // Release mic when component unmounts (tab switch away).
@@ -193,17 +199,27 @@ export default function RTA({ onSaveMeasurement }) {
       accumRef.current      = new Float64Array(NUM_POINTS);
       accumCountRef.current = 0;
 
-      // Watchdog: every second, re-assert MODE_NORMAL and refresh the
-      // on-screen output device label. Android (Samsung in particular)
-      // re-flips audio mode back to communication ~0.5-1s after we set
-      // it, which downgrades BT from A2DP to SCO mid-playback. Pushing
-      // back periodically holds it in normal mode for as long as we
-      // keep running.
+      // Watchdog: every second, re-assert MODE_NORMAL, refresh the
+      // on-screen output device label, AND recover the AudioContext
+      // if Android suspended it (Samsung's privacy mic indicator can
+      // briefly steal audio focus when it appears).
       const tick = async () => {
+        // 1) Hold the audio policy in MEDIA mode
         await forceMediaAudioMode();
+
+        // 2) AudioContext recovery
+        const ctx = audioCtxRef.current;
+        if (ctx) {
+          setCtxState(ctx.state);
+          if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+            try { await ctx.resume(); } catch {}
+            setCtxState(ctx.state);
+          }
+        }
+
+        // 3) Output device diagnostic
         try {
           const outs = await listNativeOutputs();
-          // Pick the most "interesting" output: prefer non-builtin.
           const order = ['bt_a2dp', 'bt_sco', 'usb_headset', 'usb', 'wired_headset', 'wired', 'hdmi', 'dock', 'builtin_speaker', 'builtin_earpiece'];
           let pick = null;
           for (const t of order) {
@@ -215,7 +231,9 @@ export default function RTA({ onSaveMeasurement }) {
         } catch {}
       };
       tick();
-      watchdogRef.current = setInterval(tick, 1000);
+      // Tick faster (250ms) so Samsung's mic-indicator suspend gets
+      // resumed within 1 frame instead of leaving 1 second of silence.
+      watchdogRef.current = setInterval(tick, 250);
 
       setRunning(true);
       startLoop();
@@ -502,6 +520,13 @@ export default function RTA({ onSaveMeasurement }) {
                   /sco|earpiece/i.test(outputName) ? 'text-red-400' : 'text-emerald-400'
                 }`}>
                   out: {outputName}
+                </div>
+              )}
+              {ctxState && (
+                <div className={`text-[9px] tracking-tight ${
+                  ctxState === 'running' ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                  ctx: {ctxState}
                 </div>
               )}
             </div>
