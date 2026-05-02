@@ -24,6 +24,24 @@ export async function listNativeInputs() {
 }
 
 /**
+ * Returns the list of *output* audio devices Android knows about
+ * right now (built-in speaker, BT-A2DP, BT-SCO, USB headset, wired,
+ * HDMI, …). Used as a diagnostic — if a Bluetooth device starts as
+ * `bt_a2dp` and switches to `bt_sco` mid-playback, that confirms an
+ * Android audio-mode fight regardless of what we set.
+ */
+export async function listNativeOutputs() {
+  if (!Capacitor?.isNativePlatform?.()) return [];
+  try {
+    const result = await AudioInputs.listOutputs();
+    return result?.devices ?? [];
+  } catch (err) {
+    console.warn('listNativeOutputs failed:', err);
+    return [];
+  }
+}
+
+/**
  * Force Android's audio system back to MODE_NORMAL so Bluetooth
  * headphones stay on A2DP (high-quality stereo) and audio output
  * is routed through the right device. Web getUserMedia puts the

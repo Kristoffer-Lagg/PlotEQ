@@ -25,11 +25,20 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class AudioInputsPlugin extends Plugin {
     @PluginMethod
     public void list(PluginCall call) {
+        listInternal(call, AudioManager.GET_DEVICES_INPUTS);
+    }
+
+    @PluginMethod
+    public void listOutputs(PluginCall call) {
+        listInternal(call, AudioManager.GET_DEVICES_OUTPUTS);
+    }
+
+    private void listInternal(PluginCall call, int flags) {
         AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         JSArray arr = new JSArray();
 
         if (am != null) {
-            AudioDeviceInfo[] devices = am.getDevices(AudioManager.GET_DEVICES_INPUTS);
+            AudioDeviceInfo[] devices = am.getDevices(flags);
             for (AudioDeviceInfo d : devices) {
                 JSObject o = new JSObject();
                 o.put("id", d.getId());
@@ -84,14 +93,19 @@ public class AudioInputsPlugin extends Plugin {
 
     private String typeName(int type) {
         switch (type) {
-            case AudioDeviceInfo.TYPE_BUILTIN_MIC:        return "builtin";
+            case AudioDeviceInfo.TYPE_BUILTIN_MIC:        return "builtin_mic";
+            case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER:    return "builtin_speaker";
+            case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE:   return "builtin_earpiece";
             case AudioDeviceInfo.TYPE_USB_DEVICE:         return "usb";
             case AudioDeviceInfo.TYPE_USB_ACCESSORY:      return "usb";
             case AudioDeviceInfo.TYPE_USB_HEADSET:        return "usb_headset";
-            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:      return "bluetooth";
-            case AudioDeviceInfo.TYPE_WIRED_HEADSET:      return "wired";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:     return "bt_a2dp";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:      return "bt_sco";
+            case AudioDeviceInfo.TYPE_WIRED_HEADSET:      return "wired_headset";
             case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:   return "wired";
-            default:                                      return "other";
+            case AudioDeviceInfo.TYPE_HDMI:               return "hdmi";
+            case AudioDeviceInfo.TYPE_DOCK:               return "dock";
+            default:                                      return "other(" + type + ")";
         }
     }
 }

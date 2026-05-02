@@ -5,7 +5,7 @@ import {
 import { createPinkNoisePlayer } from '../utils/pinkNoise.js';
 import { parseCalFile, applyCalibration } from '../utils/calParser.js';
 import PlotTooltip from './PlotTooltip.jsx';
-import { forceMediaAudioMode } from '../utils/nativeAudio.js';
+import { forceMediaAudioMode, listNativeOutputs } from '../utils/nativeAudio.js';
 
 // Axis ticks identical to PlotArea so the two views look interchangeable.
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -61,6 +61,10 @@ export default function RTA({ onSaveMeasurement }) {
   const [spl, setSpl]         = useState({ z: 0, a: 0, c: 0 });
   const [recTime, setRecTime] = useState(0);
   const [error, setError]     = useState(null);
+  // Diagnostic: most-prominent audio output device Android currently
+  // routes to. Updated every second while running. Lets us see if BT
+  // drops from a2dp -> sco when pink noise quiets down.
+  const [outputName, setOutputName] = useState('');
 
   // Refs for audio resources so we can tear them down cleanly.
   const audioCtxRef   = useRef(null);
@@ -69,6 +73,10 @@ export default function RTA({ onSaveMeasurement }) {
   const genRef        = useRef(null);
   const rafRef        = useRef(null);
   const calRef        = useRef(null);
+  // Watchdog timer: re-asserts MODE_NORMAL while running, polls the
+  // current output device for the on-screen diagnostic. Cleared in
+  // teardown.
+  const watchdogRef   = useRef(null);
 
   // Forever-average accumulator. Summing LINEAR POWER (|H|²), not dB values —
   // matches REW's RMS-power averaging and is what's physically correct.
@@ -95,6 +103,10 @@ export default function RTA({ onSaveMeasurement }) {
   const teardown = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
+    if (watchdogRef.current) {
+      clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
+    }
     genRef.current?.dispose();
     genRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -111,6 +123,7 @@ export default function RTA({ onSaveMeasurement }) {
     setRecTime(0);
     setCurve([]);
     setSpl({ z: 0, a: 0, c: 0 });
+    setOutputName('');
   }, []);
 
   // Release mic when component unmounts (tab switch away).
@@ -179,6 +192,31 @@ export default function RTA({ onSaveMeasurement }) {
 
       accumRef.current      = new Float64Array(NUM_POINTS);
       accumCountRef.current = 0;
+
+      // Watchdog: every second, re-assert MODE_NORMAL and refresh the
+      // on-screen output device label. Android (Samsung in particular)
+      // re-flips audio mode back to communication ~0.5-1s after we set
+      // it, which downgrades BT from A2DP to SCO mid-playback. Pushing
+      // back periodically holds it in normal mode for as long as we
+      // keep running.
+      const tick = async () => {
+        await forceMediaAudioMode();
+        try {
+          const outs = await listNativeOutputs();
+          // Pick the most "interesting" output: prefer non-builtin.
+          const order = ['bt_a2dp', 'bt_sco', 'usb_headset', 'usb', 'wired_headset', 'wired', 'hdmi', 'dock', 'builtin_speaker', 'builtin_earpiece'];
+          let pick = null;
+          for (const t of order) {
+            pick = outs.find((d) => d.typeName === t);
+            if (pick) break;
+          }
+          if (pick) setOutputName(`${pick.name || pick.typeName} (${pick.typeName})`);
+          else setOutputName(outs[0]?.typeName || '');
+        } catch {}
+      };
+      tick();
+      watchdogRef.current = setInterval(tick, 1000);
+
       setRunning(true);
       startLoop();
       return true;
@@ -456,6 +494,16 @@ export default function RTA({ onSaveMeasurement }) {
               <div className="text-[10px] text-zinc-500 tracking-tight">
                 A {spl.a.toFixed(1)} · C {spl.c.toFixed(1)}
               </div>
+              {/* Audio output device diagnostic. Color-coded: green when
+                  routed through a high-quality path (A2DP / wired / USB),
+                  red when on a call-quality path (SCO / earpiece). */}
+              {outputName && (
+                <div className={`text-[9px] tracking-tight mt-1 ${
+                  /sco|earpiece/i.test(outputName) ? 'text-red-400' : 'text-emerald-400'
+                }`}>
+                  out: {outputName}
+                </div>
+              )}
             </div>
           </>
         ) : (
