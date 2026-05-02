@@ -3,6 +3,7 @@ package com.kristofferlagg.ploteq;
 import android.content.Context;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.os.Build;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -43,6 +44,42 @@ public class AudioInputsPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("devices", arr);
         call.resolve(ret);
+    }
+
+    /**
+     * Force the audio system back to MODE_NORMAL after the WebView's
+     * getUserMedia put it into MODE_IN_COMMUNICATION. Without this,
+     * Bluetooth headphones get switched from A2DP (high-quality stereo)
+     * to SCO (mono, voice-call quality), pink noise output sounds
+     * "far away" and tinny, and the audio routing flickers between
+     * speaker / headphones / earpiece.
+     *
+     * Also explicitly disables speakerphone routing and clears the
+     * "communication device" hint introduced in API 31 — both can be
+     * left set by Chrome when the app first acquired the mic.
+     *
+     * Safe to call repeatedly; the policy state is idempotent.
+     */
+    @PluginMethod
+    public void setMediaMode(PluginCall call) {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        if (am != null) {
+            try {
+                am.setMode(AudioManager.MODE_NORMAL);
+            } catch (Exception ignored) {}
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try { am.clearCommunicationDevice(); } catch (Exception ignored) {}
+            } else {
+                try {
+                    am.stopBluetoothSco();
+                    am.setBluetoothScoOn(false);
+                } catch (Exception ignored) {}
+            }
+
+            try { am.setSpeakerphoneOn(false); } catch (Exception ignored) {}
+        }
+        call.resolve();
     }
 
     private String typeName(int type) {

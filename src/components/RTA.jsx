@@ -5,6 +5,7 @@ import {
 import { createPinkNoisePlayer } from '../utils/pinkNoise.js';
 import { parseCalFile, applyCalibration } from '../utils/calParser.js';
 import PlotTooltip from './PlotTooltip.jsx';
+import { forceMediaAudioMode } from '../utils/nativeAudio.js';
 
 // Axis ticks identical to PlotArea so the two views look interchangeable.
 const TICKS = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -130,6 +131,13 @@ export default function RTA({ onSaveMeasurement }) {
       });
       streamRef.current = stream;
 
+      // Android's WebView sets the audio system to MODE_IN_COMMUNICATION
+      // when getUserMedia opens a mic — that drops Bluetooth headphones
+      // to SCO (call-quality, mono) and bounces output routing. Force
+      // back to MODE_NORMAL so pink noise / playback uses A2DP (stereo,
+      // high-fidelity). No-op outside Capacitor.
+      await forceMediaAudioMode();
+
       // Look up saved cal for this mic.
       try {
         const all   = await navigator.mediaDevices.enumerateDevices();
@@ -146,7 +154,12 @@ export default function RTA({ onSaveMeasurement }) {
         }
       } catch {}
 
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // latencyHint:'playback' — we care about playback fidelity (pink
+      // noise) more than tight round-trip; Chrome's default 'interactive'
+      // can push the output stream into a low-latency communication
+      // pipeline that conflicts with high-quality A2DP routing.
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtor({ latencyHint: 'playback' });
       audioCtxRef.current = ctx;
 
       const src      = ctx.createMediaStreamSource(stream);
@@ -158,6 +171,11 @@ export default function RTA({ onSaveMeasurement }) {
 
       genRef.current = createPinkNoisePlayer(ctx);
       genRef.current.setVolumeDb(genVol);
+
+      // Re-assert MODE_NORMAL after the AudioContext is fully wired —
+      // creating createMediaStreamSource / starting the analyser can
+      // bounce the audio policy back to communication on some devices.
+      await forceMediaAudioMode();
 
       accumRef.current      = new Float64Array(NUM_POINTS);
       accumCountRef.current = 0;

@@ -24,6 +24,25 @@ export async function listNativeInputs() {
 }
 
 /**
+ * Force Android's audio system back to MODE_NORMAL so Bluetooth
+ * headphones stay on A2DP (high-quality stereo) and audio output
+ * is routed through the right device. Web getUserMedia puts the
+ * system into MODE_IN_COMMUNICATION — this undoes that.
+ *
+ * Should be called immediately after a successful getUserMedia()
+ * and after the AudioContext has resumed. Safe to call repeatedly;
+ * a no-op outside Capacitor.
+ */
+export async function forceMediaAudioMode() {
+  if (!Capacitor?.isNativePlatform?.()) return;
+  try {
+    await AudioInputs.setMediaMode();
+  } catch (err) {
+    console.warn('forceMediaAudioMode failed:', err);
+  }
+}
+
+/**
  * Picks the "best" external mic name from the native input list, or
  * null if only the built-in mic is connected. Used to decorate the
  * mic-picker UI with the actual hardware name.
